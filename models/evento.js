@@ -8,7 +8,6 @@ var eventoSchema = new mongoose.Schema({
     	type: {type: String, default:'Point'},
     	coordinates: [Number]
     },
-    tipo: String,
     partecipanti_att: Number,
 	squadra_A: [{
 		type: mongoose.Schema.Types.ObjectId,
