@@ -105,6 +105,8 @@ app.get("/",function(req,res){
 })
 
 
+
+//ROUTE PER LA SELEZIONE DI UN LUOGO, DATO UN INDIRIZZO DI RIFERIMENTO
 app.get("/selezionaluogo",function(req,res){
   request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
     function (error, response, body){
@@ -119,8 +121,8 @@ app.get("/selezionaluogo",function(req,res){
 });
 
 
-//ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
 
+//ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
 app.get("/search",isLoggedIn,function(req,res){
 	var giorno = Number(req.query.giorno);
 	var mese = Number(req.query.mese);
@@ -151,8 +153,52 @@ app.get("/search",isLoggedIn,function(req,res){
 })
 
 
-//ROUTE PER MOSTRARE TUTTI GLI EVENTI ASSOCIATI A UN UTENTE (RESTITUISCO SOLO I NOMI DEGLI EVENTI)
 
+//ROUTE PER L'AGGIUNTA DELL'UTENTE AD UN EVENTO SPECIFICATO
+app.put("/MiAggiungo", isLoggedIn, function(req, res){
+  Evento.findById(req.body.evento).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
+      if(err){
+      console.log(err);
+      res.redirect("/");
+      return;
+    }
+    console.log("Stai richiedendo di aggiungerti");
+
+    var squadra = req.body.Squadra;
+    if(squadra=="A"){
+      var A = foundE.squadra_A;
+      if(A!=null || A.length <5){
+        foundE.squadra_A.push(req.user);
+        foundE.save();
+        res.send("Aggiunto");
+        return;
+      }
+      else{
+      res.send("Non Aggiunto");
+      return;
+      }
+        
+  }
+        else{
+          var B = foundE.squadra_B;
+            if(B!=null || B.length <5){
+            foundE.squadra_B.push(req.user);
+            foundE.save();
+            res.send("Aggiunto");
+            return;
+            }
+              else{
+               res.send("Non Aggiunto");
+               return;
+              }
+
+        }
+})
+})
+
+
+
+//ROUTE PER MOSTRARE TUTTI GLI EVENTI ASSOCIATI A UN UTENTE (RESTITUISCO SOLO I NOMI DEGLI EVENTI)
 app.get("/eventi",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi","_id").exec(function(err,foundU){
     var risposta = {ev:[]};
@@ -167,8 +213,8 @@ app.get("/eventi",isLoggedIn,function(req,res){
 });
 
 
-//ROUTE PER DISSOCIARE UN UTENTE DA UN EVENTO A CUI PARTECIPA
 
+//ROUTE PER DISSOCIARE UN UTENTE DA UN EVENTO A CUI PARTECIPA
 app.put("/abbandona",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
     if(err){
