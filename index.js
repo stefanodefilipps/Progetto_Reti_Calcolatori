@@ -8,6 +8,7 @@ var express     		= require("express"),
     passport    		= require("passport"),
     amqp 				= require('amqplib/callback_api'),
     fbConfig 			= require('./fb.js');
+    request       = require('request'),
 	FacebookStrategy 	= require('passport-facebook').Strategy;
 /**
 ============================================
@@ -34,22 +35,22 @@ passport.use('facebook', new FacebookStrategy({
   callbackURL     : fbConfig.callbackUrl,
   profileFields   : fbConfig.profileFields
 },
- 
+
   // facebook will send back the tokens and profile
   function(access_token, refresh_token, profile, done) {
     // asynchronous
     process.nextTick(function() {
     	console.log(profile);
     	console.log(profile.id);
-     
+
       // find the user in the database based on their facebook id
       User.findOne({ 'id' : profile.id }, function(err, user) {
- 
+
         // if there is an error, stop everything and return that
         // ie an error connecting to the database
         if (err)
           return done(err);
- 
+
           // if the user is found, then log them in
           if (user) {
           	console.log("GIORGIO STRONZO");
@@ -58,23 +59,23 @@ passport.use('facebook', new FacebookStrategy({
             // if there is no user found with that facebook id, create them
             console.log("NOTFOUND");
             var newUser = new User();
- 
+
             // set all of the facebook information in our user model
-            newUser.id    = profile.id; // set the users facebook id                 
-            newUser.access_token = access_token; // we will save the token that facebook provides to the user                    
+            newUser.id    = profile.id; // set the users facebook id
+            newUser.access_token = access_token; // we will save the token that facebook provides to the user
             newUser.firstName  = profile.name.givenName;
             newUser.lastName = profile.name.familyName; // look at the passport user profile to see how names are returned
             newUser.email = profile.emails[0].value; // facebook can return multiple emails so we'll take the first
- 
+
             // save our user to the database
             newUser.save(function(err) {
               if (err)
                 throw err;
- 
+
               // if successful, return the new user
               return done(null, newUser);
             });
-         } 
+         }
       });
     });
 }));
@@ -102,6 +103,21 @@ QUI VANNO MESSE TUTTE I ROUTE DELLE API DEL SERVIZIO DA SVILUPPARE
 app.get("/",function(req,res){
 	res.render("home");
 })
+
+
+app.get("/selezionaluogo",function(req,res){
+  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+    function (error, response, body){
+    if (!error && response.statusCode == 200) {
+    var info = JSON.parse(body);
+    request('https://maps.googleapis.com/maps/api/place/textsearch/json?query=calcetto&location='+info.results[0].geometry.location.lat+','+info.results[0].geometry.location.lng+
+      '&radius=3500&key=AIzaSyC-iczdxkw-J2IaVzZLtrCzY6OBX9gP9Pw', function(error, response, body){
+        if (!error && response.statusCode == 200) res.send(body);
+      });
+  }
+});
+});
+
 
 //ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
 
@@ -190,7 +206,7 @@ app.put("/abbandona",isLoggedIn,function(req,res){
                 console.log(us._id);
                 if(us._id.equals(req.user._id)){
                   contenuto = us;
-                } 
+                }
               })
             }
             else{
@@ -198,7 +214,7 @@ app.put("/abbandona",isLoggedIn,function(req,res){
                 console.log(us._id);
                 if(us._id.equals(req.user._id)){
                   contenuto = us;
-                } 
+                }
               })
             }
             if(contenuto == undefined){
@@ -235,7 +251,7 @@ app.get("/login",function(req,res){
 	res.render("login");
 })
 
-app.get('/login/facebook', 
+app.get('/login/facebook',
   passport.authenticate('facebook', {scope : ['email'] }
 ));
 
@@ -258,7 +274,7 @@ app.get('/logoutFromFacebook', function(req, res) {
     res.redirect('https://www.facebook.com/logout.php?next=http://localhost:3000/logout&access_token='+req.user.access_token);
 });
 
-//FUNZIONE MIDDLEWARE CHE PERMETTE DI ESEGUIRE DETERMINATE ROUTE SE E SOLO SE L'UTENTE SI È IDENTIFICATO 
+//FUNZIONE MIDDLEWARE CHE PERMETTE DI ESEGUIRE DETERMINATE ROUTE SE E SOLO SE L'UTENTE SI È IDENTIFICATO
 function isLoggedIn(req, res, next){
     if(req.isAuthenticated()){
         return next();
