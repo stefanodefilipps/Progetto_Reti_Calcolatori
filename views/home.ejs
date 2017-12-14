@@ -20,12 +20,28 @@
 		<button>mostra eventi</button>
 	</form>
 	<form method="GET" action="http://localhost:3000/search">
-		<input type="text" name="giorno" placeholder="giorno">
-		<input type="text" name="mese" placeholder="mese">
-		<input type="text" name="anno" placeholder="anno">
+		<input type="text" name="giorno" placeholder="Giorno">
+		<input type="text" name="mese" placeholder="Mese">
+		<input type="text" name="anno" placeholder="Anno">
 		<input type="text" name="lat" placeholder="lat">
 		<input type="text" name="long" placeholder="long">
 		<input type="submit" name="">
 	</form>
+	<form action="http://localhost:3000/selezionaluogo" method="get">
+	<table border = "1">
+	<td align="right">Luogo:
+	<td><input type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo"> <input type="submit" value="Cerca strutture nelle vicinanze"><tr>
+</table>
+</form>
+	<form action="http://localhost:3000/MiAggiungo?_method=PUT" method="POST">
+	<table border = "1">
+	<td align="right">Nome Evento:
+	<td><input type="text" name="evento" size="20" maxlength="20" placeholder="Inserisci Nome Evento">
+	<label><input type="radio" name="Squadra" value="A"/>SquadraA</label>
+	<label><input type="radio" name="Squadra" value="B"/>SquadraB</label>
+	<input type="submit" value="Aggiungimi ad evento"></td>
+</td>
+</table>
+</form>
 </body>
 </html>

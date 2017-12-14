@@ -8,6 +8,7 @@ var express     		= require("express"),
     passport    		= require("passport"),
     amqp 				= require('amqplib/callback_api'),
     fbConfig 			= require('./fb.js');
+    request       = require('request'),
 	FacebookStrategy 	= require('passport-facebook').Strategy;
 	GoogleStrategy 		= require('passport-google-oauth20').Strategy;
 /**
@@ -41,15 +42,15 @@ passport.use('facebook', new FacebookStrategy({
     process.nextTick(function() {
     	console.log(profile);
     	console.log(profile.id);
-     
+
       // find the user in the database based on their facebook id
       User.findOne({ 'id' : profile.id }, function(err, user) {
- 
+
         // if there is an error, stop everything and return that
         // ie an error connecting to the database
         if (err)
           return done(err);
- 
+
           // if the user is found, then log them in
           if (user) {
           	console.log("GIORGIO STRONZO");
@@ -58,23 +59,23 @@ passport.use('facebook', new FacebookStrategy({
             // if there is no user found with that facebook id, create them
             console.log("NOTFOUND");
             var newUser = new User();
- 
+
             // set all of the facebook information in our user model
-            newUser.id    = profile.id; // set the users facebook id                 
-            newUser.access_token = access_token; // we will save the token that facebook provides to the user                    
+            newUser.id    = profile.id; // set the users facebook id
+            newUser.access_token = access_token; // we will save the token that facebook provides to the user
             newUser.firstName  = profile.name.givenName;
             newUser.lastName = profile.name.familyName; // look at the passport user profile to see how names are returned
             newUser.email = profile.emails[0].value; // facebook can return multiple emails so we'll take the first
- 
+
             // save our user to the database
             newUser.save(function(err) {
               if (err)
                 throw err;
- 
+
               // if successful, return the new user
               return done(null, newUser);
             });
-         } 
+         }
       });
     });
 }));
@@ -120,8 +121,23 @@ app.get("/addc",function(req,res){
 	res.send("GIORGIO CAZZO");
 })
 
-//ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
+//ROUTE PER LA SELEZIONE DI UN LUOGO, DATO UN INDIRIZZO DI RIFERIMENTO
+app.get("/selezionaluogo",function(req,res){
+  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+    function (error, response, body){
+    if (!error && response.statusCode == 200) {
+    var info = JSON.parse(body);
+    request('https://maps.googleapis.com/maps/api/place/textsearch/json?query=calcetto&location='+info.results[0].geometry.location.lat+','+info.results[0].geometry.location.lng+
+      '&radius=3500&key=AIzaSyC-iczdxkw-J2IaVzZLtrCzY6OBX9gP9Pw', function(error, response, body){
+        if (!error && response.statusCode == 200) res.send(body);
+      });
+  }
+});
+});
 
+
+
+//ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
 app.get("/search",isLoggedIn,function(req,res){
 	var giorno = Number(req.query.giorno);
 	var mese = Number(req.query.mese);
@@ -152,8 +168,52 @@ app.get("/search",isLoggedIn,function(req,res){
 })
 
 
-//ROUTE PER MOSTRARE TUTTI GLI EVENTI ASSOCIATI A UN UTENTE (RESTITUISCO SOLO I NOMI DEGLI EVENTI)
 
+//ROUTE PER L'AGGIUNTA DELL'UTENTE AD UN EVENTO SPECIFICATO
+app.put("/MiAggiungo", isLoggedIn, function(req, res){
+  Evento.findById(req.body.evento).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
+      if(err){
+      console.log(err);
+      res.redirect("/");
+      return;
+    }
+    console.log("Stai richiedendo di aggiungerti");
+
+    var squadra = req.body.Squadra;
+    if(squadra=="A"){
+      var A = foundE.squadra_A;
+      if(A!=null || A.length <5){
+        foundE.squadra_A.push(req.user);
+        foundE.save();
+        res.send("Aggiunto");
+        return;
+      }
+      else{
+      res.send("Non Aggiunto");
+      return;
+      }
+        
+  }
+        else{
+          var B = foundE.squadra_B;
+            if(B!=null || B.length <5){
+            foundE.squadra_B.push(req.user);
+            foundE.save();
+            res.send("Aggiunto");
+            return;
+            }
+              else{
+               res.send("Non Aggiunto");
+               return;
+              }
+
+        }
+})
+})
+
+
+
+//ROUTE PER MOSTRARE TUTTI GLI EVENTI ASSOCIATI A UN UTENTE (RESTITUISCO SOLO I NOMI DEGLI EVENTI)
 app.get("/eventi",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi","_id").exec(function(err,foundU){
     var risposta = {ev:[]};
@@ -168,8 +228,8 @@ app.get("/eventi",isLoggedIn,function(req,res){
 });
 
 
-//ROUTE PER DISSOCIARE UN UTENTE DA UN EVENTO A CUI PARTECIPA
 
+//ROUTE PER DISSOCIARE UN UTENTE DA UN EVENTO A CUI PARTECIPA
 app.put("/abbandona",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
     if(err){
@@ -207,7 +267,7 @@ app.put("/abbandona",isLoggedIn,function(req,res){
                 console.log(us._id);
                 if(us._id.equals(req.user._id)){
                   contenuto = us;
-                } 
+                }
               })
             }
             else{
@@ -215,7 +275,7 @@ app.put("/abbandona",isLoggedIn,function(req,res){
                 console.log(us._id);
                 if(us._id.equals(req.user._id)){
                   contenuto = us;
-                } 
+                }
               })
             }
             if(contenuto == undefined){
@@ -252,7 +312,7 @@ app.get("/login",function(req,res){
 	res.render("login");
 })
 
-app.get('/login/facebook', 
+app.get('/login/facebook',
   passport.authenticate('facebook', {scope : ['email'] }
 ));
 
@@ -275,7 +335,7 @@ app.get('/logoutFromFacebook', function(req, res) {
     res.redirect('https://www.facebook.com/logout.php?next=http://localhost:3000/logout&access_token='+req.user.access_token);
 });
 
-//FUNZIONE MIDDLEWARE CHE PERMETTE DI ESEGUIRE DETERMINATE ROUTE SE E SOLO SE L'UTENTE SI È IDENTIFICATO 
+//FUNZIONE MIDDLEWARE CHE PERMETTE DI ESEGUIRE DETERMINATE ROUTE SE E SOLO SE L'UTENTE SI È IDENTIFICATO
 function isLoggedIn(req, res, next){
     if(req.isAuthenticated()){
         return next();
