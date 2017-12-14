@@ -103,6 +103,125 @@ app.get("/",function(req,res){
 	res.render("home");
 })
 
+//ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
+
+app.get("/search",isLoggedIn,function(req,res){
+	var giorno = Number(req.query.giorno);
+	var mese = Number(req.query.mese);
+	var anno = Number(req.query.anno);
+	var data_ = new Date(anno,mese,giorno);
+	var lat = req.query.lat;
+	var long = req.query.long;
+	Evento.find({
+		"data":data_,
+		'geo':{
+		  $near:  {
+		       $geometry: {
+		          type: "Point" ,
+		          coordinates: [Number(lat),Number(long)]
+		       },
+		  $maxDistance: 30
+			}
+		}
+	}).exec(function(err,events){
+		if(err){
+			console.log(err);
+			res.redirect("/");
+		}
+		else{
+			res.send(JSON.stringify(events));
+		}
+	})
+})
+
+
+//ROUTE PER MOSTRARE TUTTI GLI EVENTI ASSOCIATI A UN UTENTE (RESTITUISCO SOLO I NOMI DEGLI EVENTI)
+
+app.get("/eventi",isLoggedIn,function(req,res){
+  User.findById(req.user._id).populate("eventi","_id").exec(function(err,foundU){
+    var risposta = {ev:[]};
+    var finito;
+    foundU.eventi.forEach(function(e){
+      finito = false;
+      console.log(e);
+        risposta.ev.push(e);
+    })
+    res.send(JSON.stringify(risposta));
+  })
+});
+
+
+//ROUTE PER DISSOCIARE UN UTENTE DA UN EVENTO A CUI PARTECIPA
+
+app.put("/abbandona",isLoggedIn,function(req,res){
+  User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+    if(err){
+      console.log(err);
+      res.redirect("/");
+      return;
+    }
+    console.log("stai abbandonando");
+    var contenuto = foundU.eventi.find(function(id_ev){
+      return id_ev._id == req.body.evento;
+    });
+    if(contenuto == undefined){
+      console.log("utente non contiene questo elemento");
+      res.send("Non hai questo elem");
+      return;
+    }
+    console.log(contenuto);
+    foundU.eventi.pop(contenuto);
+    foundU.save(function(err){
+      if(err){
+        console.log(err);
+        res.redirect("/");
+      }
+      else{
+        Evento.findById(req.body.evento).populate("squadra_"+req.body.squadra).exec(function(err,foundE){
+          if(err){
+            console.log(err);
+            res.redirect("/");
+            return;
+          }
+            console.log(req.user._id);
+            var contenuto;
+            if(req.body.squadra == "A"){
+              foundE.squadra_A.forEach(function(us){
+                console.log(us._id);
+                if(us._id.equals(req.user._id)){
+                  contenuto = us;
+                } 
+              })
+            }
+            else{
+              foundE.squadra_B.forEach(function(us){
+                console.log(us._id);
+                if(us._id.equals(req.user._id)){
+                  contenuto = us;
+                } 
+              })
+            }
+            if(contenuto == undefined){
+              console.log("Evento non contiene questo utente");
+              res.send("Non sei in questa squadra");
+              return;
+            }
+            foundE.squadra_A.pop(contenuto);
+            foundE.save(function(err){
+              if(err){
+                console.log(err);
+                res.redirect("/");
+              }
+              else{
+                res.redirect("/");
+              }
+            })
+        })
+      }
+    });
+  })
+})
+
 
 /**
 ===========================================================

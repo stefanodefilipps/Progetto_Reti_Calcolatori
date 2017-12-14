@@ -1,10 +1,10 @@
 var mongoose = require('mongoose');
 
 var eventoSchema = new mongoose.Schema({
-    id: String,
+    _id: String,
     data: Date,
     ora: Number,
-    loc: {
+    geo: {
     	type: {type: String, default:'Point'},
     	coordinates: [Number]
     },
@@ -22,5 +22,7 @@ var eventoSchema = new mongoose.Schema({
        	ref: "User"
 	}
 });
+
+eventoSchema.index({geo: '2dsphere'});
 
 module.exports = mongoose.model("Evento", eventoSchema);

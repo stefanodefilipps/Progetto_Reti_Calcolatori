@@ -11,5 +11,21 @@
 	<form action="http://localhost:3000/logoutFromFacebook" method="GET">
 		<button>Log-Out-Facebook</button>
 	</form>
+	<form method="POST" action="http://localhost:3000/abbandona?_method=PUT">
+		<input type="text" name="evento">
+		<input type="text" name="squadra">
+		<input type="submit" name="">
+	</form>
+	<form method="GET" action="http://localhost:3000/eventi">
+		<button>mostra eventi</button>
+	</form>
+	<form method="GET" action="http://localhost:3000/search">
+		<input type="text" name="giorno" placeholder="giorno">
+		<input type="text" name="mese" placeholder="mese">
+		<input type="text" name="anno" placeholder="anno">
+		<input type="text" name="lat" placeholder="lat">
+		<input type="text" name="long" placeholder="long">
+		<input type="submit" name="">
+	</form>
 </body>
 </html>
