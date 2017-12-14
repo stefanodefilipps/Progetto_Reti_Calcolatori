@@ -9,6 +9,7 @@ var express     		= require("express"),
     amqp 				= require('amqplib/callback_api'),
     fbConfig 			= require('./fb.js');
 	FacebookStrategy 	= require('passport-facebook').Strategy;
+	GoogleStrategy 		= require('passport-google-oauth20').Strategy;
 /**
 ============================================
 SETTAGGIO DEI MODULI CHE VERRANNO UTILIZZATI
@@ -34,7 +35,6 @@ passport.use('facebook', new FacebookStrategy({
   callbackURL     : fbConfig.callbackUrl,
   profileFields   : fbConfig.profileFields
 },
- 
   // facebook will send back the tokens and profile
   function(access_token, refresh_token, profile, done) {
     // asynchronous
@@ -79,6 +79,18 @@ passport.use('facebook', new FacebookStrategy({
     });
 }));
 
+passport.use(new GoogleStrategy({
+    clientID: "659266014657-tino93761qr2a4vbhpblgf0o789gohdl.apps.googleusercontent.com",
+    clientSecret: "9BRIVPUQMALCXYkO2it7qUJD",
+    callbackURL: "http://localhost:3000/addc",
+    scope : ['https://www.googleapis.com/auth/calendar','profile']
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    console.log(cb);
+    console.log(profile);
+  }
+));
+
 
 passport.serializeUser(function(user, done) {
     console.log('serializing user: ');
@@ -101,6 +113,11 @@ QUI VANNO MESSE TUTTE I ROUTE DELLE API DEL SERVIZIO DA SVILUPPARE
 
 app.get("/",function(req,res){
 	res.render("home");
+})
+
+
+app.get("/addc",function(req,res){
+	res.send("GIORGIO CAZZO");
 })
 
 //ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
@@ -265,6 +282,18 @@ function isLoggedIn(req, res, next){
     }
     res.redirect("/login");
 }
+
+//CONF GOOGLE
+
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile',"https://www.googleapis.com/auth/calendar"] }));
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/addc');
+  });
 
 /**
 ================
