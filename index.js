@@ -283,28 +283,37 @@ app.get("/search",isLoggedIn,function(req,res){
 	var mese = Number(req.query.mese);
 	var anno = Number(req.query.anno);
 	var data_ = new Date(anno,mese,giorno);
-	var lat = req.query.lat;
-	var long = req.query.long;
-	Evento.find({
-		"data":data_,
-		'geo':{
-		  $near:  {
-		       $geometry: {
-		          type: "Point" ,
-		          coordinates: [Number(lat),Number(long)]
-		       },
-		  $maxDistance: 30
-			}
-		}
-	}).exec(function(err,events){
-		if(err){
-			console.log(err);
-			res.redirect("/");
-		}
-		else{
-			res.send(JSON.stringify(events));
-		}
-	})
+	var indirizzo = req.query.indirizzo;
+
+  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+    function (error, response, body){
+    if (!error && response.statusCode == 200) {
+          var info = JSON.parse(body);
+
+          Evento.find({
+            "data":data_,
+            'geo':{
+              $near:  {
+                   $geometry: {
+                      type: "Point" ,
+                      coordinates: [info.results[0].geometry.location.lat,info.results[0].geometry.location.lng]
+                   },
+              $maxDistance: 3000
+              }
+            }
+          }).exec(function(err,events){
+            if(err){
+              console.log(err);
+              res.redirect("/");
+            }
+            else{
+              res.send(JSON.stringify(events));
+            }
+          })
+      }
+
+    })
+
 })
 
 
