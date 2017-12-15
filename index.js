@@ -8,7 +8,7 @@ var express     		= require("express"),
     passport    		= require("passport"),
     amqp 				= require('amqplib/callback_api'),
     fbConfig 			= require('./fb.js');
-    request       = require('request'),
+    request      		= require('request'),
 	FacebookStrategy 	= require('passport-facebook').Strategy;
 	GoogleStrategy 		= require('passport-google-oauth20').Strategy;
 /**
@@ -66,6 +66,10 @@ passport.use('facebook', new FacebookStrategy({
             newUser.firstName  = profile.name.givenName;
             newUser.lastName = profile.name.familyName; // look at the passport user profile to see how names are returned
             newUser.email = profile.emails[0].value; // facebook can return multiple emails so we'll take the first
+            newUser.feedback=0;
+            newUser.num_recensioni=0;
+            newUser.somma_valutazione=0;
+            newUser.eventi=[];
 
             // save our user to the database
             newUser.save(function(err) {
@@ -121,6 +125,60 @@ app.get("/addc",function(req,res){
 	res.send("GIORGIO CAZZO");
 })
 
+//ROUTE PER LA CREAZIONE DI UN EVENTO
+app.post("/CreaEvento", function(req, res){
+	var nomeevento = req.body.nomeevento; 
+	var ora = Number(req.body.ora);
+	var data = new Date(req.body.anno,req.body.mese,req.body.giorno);
+	var lat = Number(req.body.lat);
+	var long = Number(req.body.long);
+
+	var object = {
+		_id: nomeevento, 
+		data: data,
+		ora: ora,
+		geo: {
+			coordinates: [lat, long]
+		} ,
+		partecipanti_att: 1,
+		squadra_A: [req.user],
+		squadra_B: [],
+		creatore: req.user
+		}
+
+	Evento.create(object, function(err,foundE){
+		if(err){
+			console.log(err);
+			res.redirect("/");
+		}
+		else{
+			console.log("Evento creato con successo");
+			res.redirect("/");
+		}
+
+	User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+    		if(err){
+     			 console.log(err);
+      			 res.redirect("/");
+      			 return;
+    		}
+    	foundU.eventi.push(foundE);
+    	foundU.save(function(err){
+      		if(err){
+        	console.log(err);
+        	res.redirect("/");
+      }
+
+	})
+
+})
+
+})
+
+})
+
+
+
 //ROUTE PER LA SELEZIONE DI UN LUOGO, DATO UN INDIRIZZO DI RIFERIMENTO
 app.get("/selezionaluogo",function(req,res){
   request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
@@ -136,6 +194,103 @@ app.get("/selezionaluogo",function(req,res){
 });
 
 
+//ROUTE PER IL RILASCIO DI UN FEEDBACK
+app.put("/feedback", isLoggedIn, function(req, res){
+
+	var evento = req.body.eventoterminato;
+	var emailrecensito = req.body.emailrecensito;
+	var feed = Number(req.body.valore);
+
+
+    Evento.findById(req.body.eventoterminato).populate("squadra_A").populate("squadra_B").exec(function(err, foundE){
+      if(err){
+      console.log(err);
+      res.redirect("/");
+      return;
+    }
+
+
+    if(foundE._id == evento){
+    	var i;
+    	var trovato = false;
+    	for(i=0; i<foundE.squadra_A.length; i++){
+    		if(emailrecensito == foundE.squadra_A[i].email){
+    			console.log("Utente trovato, puoi inviare il feedback");
+    			trovato = true;
+    		}
+    		
+    	}
+
+    	if(!trovato){
+    			for(i=0; i<foundE.squadra_B.length; i++){
+    				if(emailrecensito == foundE.squadra_B[i].email){
+    				console.log("Utente trovato, puoi inviare il feedback");
+    				trovato = true;
+    				}
+    			}	
+
+    	}
+
+    	if(!trovato){
+    		console.log("Utente da recensire non è presente in questo evento");
+    		res.redirect("/");
+    		return;
+    	}
+
+    	User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+    		var trovatoRichiedente = false;
+    		for(i=0; i<foundU.eventi.length;i++){
+    			if(req.body.eventoterminato == foundU.eventi[i]._id){
+    				trovatoRichiedente = true;
+    			}
+    		}
+    		if(!trovatoRichiedente){
+			console.log("Utente che richiede non ha partecipato all'evento");
+    		res.redirect("/");
+    		return;
+    	}
+
+    	})
+
+    	
+
+
+    	User.findOne({"email":emailrecensito}, function(err,found){
+    		var oldfeedback = found.feedback;
+    		var somma = found.somma_valutazione;
+    		var rec = found.num_recensioni +1 ;
+    		var media = (somma + feed) / rec;
+
+    		var object = { 
+    			$set:
+      				{
+        				feedback: media,
+        				somma_valutazione: somma+feed,
+        				num_recensioni: rec
+      				}
+   				}
+
+    		User.findByIdAndUpdate(found._id, object, function(err, modificati){
+    			if(err){
+    				console.log(err);
+    				res.redirect("/");
+    			}
+    			else{
+    				console.log(modificati);
+    				res.redirect("/");
+    			}
+    		}) 
+    		
+    	});
+
+
+    }
+
+    })
+
+})
+
+
 
 //ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
 app.get("/search",isLoggedIn,function(req,res){
@@ -143,29 +298,39 @@ app.get("/search",isLoggedIn,function(req,res){
 	var mese = Number(req.query.mese);
 	var anno = Number(req.query.anno);
 	var data_ = new Date(anno,mese,giorno);
-	var lat = req.query.lat;
-	var long = req.query.long;
-	Evento.find({
-		"data":data_,
-		'geo':{
-		  $near:  {
-		       $geometry: {
-		          type: "Point" ,
-		          coordinates: [Number(lat),Number(long)]
-		       },
-		  $maxDistance: 30
-			}
-		}
-	}).exec(function(err,events){
-		if(err){
-			console.log(err);
-			res.redirect("/");
-		}
-		else{
-			res.send(JSON.stringify(events));
-		}
-	})
+	var indirizzo = req.query.indirizzo;
+
+  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+    function (error, response, body){
+    if (!error && response.statusCode == 200) {
+          var info = JSON.parse(body);
+
+          Evento.find({
+            "data":data_,
+            'geo':{
+              $near:  {
+                   $geometry: {
+                      type: "Point" ,
+                      coordinates: [info.results[0].geometry.location.lat,info.results[0].geometry.location.lng]
+                   },
+              $maxDistance: 3000
+              }
+            }
+          }).exec(function(err,events){
+            if(err){
+              console.log(err);
+              res.redirect("/");
+            }
+            else{
+              res.send(JSON.stringify(events));
+            }
+          })
+      }
+
+    })
+
 })
+
 
 
 
@@ -186,7 +351,6 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
         foundE.squadra_A.push(req.user);
         foundE.save();
         res.send("Aggiunto");
-        return;
       }
       else{
       res.send("Non Aggiunto");
@@ -200,7 +364,15 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
             foundE.squadra_B.push(req.user);
             foundE.save();
             res.send("Aggiunto");
-            return;
+            var par = foundE.partecipanti_att;
+            Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: par+1}}, function(err, modicati){
+            	if(err){
+            		console.log(err);
+            	}
+            	else{
+            		console.log(modificati);
+            	}
+            })
             }
               else{
                res.send("Non Aggiunto");
@@ -208,6 +380,21 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
               }
 
         }
+        User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+    		if(err){
+     			 console.log(err);
+      			 res.redirect("/");
+      			 return;
+    		}
+    	foundU.eventi.push(foundE);
+    	foundU.save(function(err){
+      		if(err){
+        	console.log(err);
+        	res.redirect("/");
+      }
+
+	})
+})
 })
 })
 

@@ -8,7 +8,6 @@ var userSchema = new mongoose.Schema({
 	email: String,
 	feedback: Number,
 	num_recensioni: Number,
-	somma_valutazione: Number,
 	eventi: [{
 		type: mongoose.Schema.Types.ObjectId,
        	ref: "Evento"

@@ -12,20 +12,19 @@
 		<button>Log-Out-Facebook</button>
 	</form>
 	<form method="POST" action="http://localhost:3000/abbandona?_method=PUT">
-		<input type="text" name="evento">
-		<input type="text" name="squadra">
-		<input type="submit" name="">
+		<input type="text" name="evento" placeholder="Evento da abbandonare">
+		<input type="text" name="squadra" placeholder="Squadra da abbandonare">
+		<input type="submit" value="Abbandona" >
 	</form>
 	<form method="GET" action="http://localhost:3000/eventi">
-		<button>mostra eventi</button>
+		<button>Mostra eventi a cui partecipo</button>
 	</form>
 	<form method="GET" action="http://localhost:3000/search">
 		<input type="text" name="giorno" placeholder="Giorno">
 		<input type="text" name="mese" placeholder="Mese">
 		<input type="text" name="anno" placeholder="Anno">
-		<input type="text" name="lat" placeholder="lat">
-		<input type="text" name="long" placeholder="long">
-		<input type="submit" name="">
+		<input type="text" name="indirizzo" placeholder="Inserisci Indirizzo">
+		<input type="submit" value="Cerca Evento">
 	</form>
 	<form action="http://localhost:3000/selezionaluogo" method="get">
 	<table border = "1">
@@ -43,5 +42,38 @@
 </td>
 </table>
 </form>
+	<form action="http://localhost:3000/feedback?_method=PUT" method="POST">
+	<table border = "1">
+	<td align="right">Evento Giocato:
+	<td><input type="text" name="eventoterminato" size="30" maxlenght="30" placeholder="Nome Evento Giocato">
+	<td align="right">Nome Utente:
+	<td><input type="text" name="emailrecensito" size="30" maxlenght="30" placeholder="Email Utente Da Recensire">
+	<td><input type="text" name="valore" size="15" maxlength="1" placeholder="Inserisci Valore 0-9">
+	<input type="submit" value="Rilascia feedback"></td>
+</td>
+</table>
+</form>
+	<form action="http://localhost:3000/CreaEvento" method="POST">
+	<table border = "1">
+	<td align="right">Nome:
+	<td><input type="text" name="nomeevento" size="30" maxlenght="30" placeholder="Nome Evento">
+	<td align="right">Anno:
+	<td><input type="text" name="anno" size="30" maxlenght="30" placeholder="Inserire anno">
+	<td align="right">Mese:
+	<td><input type="text" name="mese" size="30" maxlenght="30" placeholder="Inserire mese">
+	<td align="right">Giorno:
+	<td><input type="text" name="giorno" size="30" maxlenght="30" placeholder="Inserire giorno">
+	<td align="right">Ora:
+	<td><input type="text" name="ora" placeholder="Inserire Orario">
+	<td align="right">lat:
+	<td><input type="text" name="lat">
+	<td align="right">long:
+	<td><input type="text" name="long">
+	<input type="submit" value="Crea Evento"></td>
+</td>
+</table>
+</form>
+	
+	
 </body>
 </html>
