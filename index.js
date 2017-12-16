@@ -7,8 +7,9 @@ var express     		= require("express"),
     User				= require("./models/user"),
     passport    		= require("passport"),
     amqp 				= require('amqplib/callback_api'),
-    fbConfig 			= require('./fb.js');
+    fbConfig 			= require('./fb.js'),
     request      		= require('request'),
+    FormData 			= require('form-data'),
 	FacebookStrategy 	= require('passport-facebook').Strategy;
 	GoogleStrategy 		= require('passport-google-oauth20').Strategy;
 /**
@@ -53,7 +54,6 @@ passport.use('facebook', new FacebookStrategy({
 
           // if the user is found, then log them in
           if (user) {
-          	console.log("GIORGIO STRONZO");
             return done(null, user); // user found, return that user
           } else {
             // if there is no user found with that facebook id, create them
@@ -70,6 +70,7 @@ passport.use('facebook', new FacebookStrategy({
             newUser.num_recensioni=0;
             newUser.somma_valutazione=0;
             newUser.eventi=[];
+            newUser.google_ac_token="";
 
             // save our user to the database
             newUser.save(function(err) {
@@ -87,12 +88,20 @@ passport.use('facebook', new FacebookStrategy({
 passport.use(new GoogleStrategy({
     clientID: "659266014657-tino93761qr2a4vbhpblgf0o789gohdl.apps.googleusercontent.com",
     clientSecret: "9BRIVPUQMALCXYkO2it7qUJD",
-    callbackURL: "http://localhost:3000/addc",
-    scope : ['https://www.googleapis.com/auth/calendar','profile']
+    callbackURL: "http://localhost:3000/connect/google/callback",
+    scope : ['https://www.googleapis.com/auth/calendar',"profile"],
+    passReqToCallback: true
   },
-  function(accessToken, refreshToken, profile, cb) {
-    console.log(cb);
-    console.log(profile);
+  function(req,accessToken, refreshToken, profile, cb) {
+  	req.user.google_ac_token = accessToken;
+  	User.findByIdAndUpdate(req.user._id,{$set:{google_ac_token:accessToken}},function(err,mod){
+  		if(err) console.log(err);
+  		else{
+  			console.log(mod);
+  			return cb(null,profile);
+  		} 
+
+  	})
   }
 ));
 
@@ -121,59 +130,120 @@ app.get("/",function(req,res){
 })
 
 
-app.get("/addc",function(req,res){
-	res.send("GIORGIO CAZZO");
+//ROUTE PER GESTIRE GLI EVENTI DEL CALENDARIO DOPO AVER OTTENUTO AUTORIZZAZIONE DI GOOGLE
+app.post("/addc",isLoggedIn,function(req,res){
+	Evento.findById(req.body.evento,function(err,foundE){
+		if(err){
+			console.log(err);
+			res.redirect("/");
+		}
+		else{
+			var nome_e=foundE._id;
+			var data_e=foundE.data;
+			data_e.setHours(foundE.ora);
+			var lat_e = foundE.geo.coordinates[0];
+			var lng_e = foundE.geo.coordinates[1];
+			request('https://maps.googleapis.com/maps/api/geocode/json?latlng='+lat_e+','+lng_e+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+		    function (error, response, body){
+		    	if (!error && response.statusCode == 200) {
+		    		var luogo = JSON.parse(body).results[0].formatted_address;
+	    		var calendar_event = {
+	    				location:luogo,
+	    				summary: "partecipa all'evento: "+nome_e,
+						end:
+						{
+						dateTime:data_e.toISOString()
+						},
+						start:
+						{
+						dateTime:data_e.toISOString()
+						}
+					};
+
+		    		var request_option={
+		    			url: "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+		    			headers: {
+					    'Authorization': 'Bearer '+req.user.google_ac_token,
+					    'Content-Type': 'application/json' 
+					    },
+					    body: calendar_event,
+					    json:true
+		    		}
+		    		request.post(request_option,function(error, response, body){
+		    			if (!error && response.statusCode == 200) {
+		    				console.log("evento creato");
+		    				console.log(body);
+		    				console.log(error);
+		    				res.redirect("/");
+		    			}
+		    			else{
+		    				console.log(error);
+		    				console.log(response.statusCode)
+		    				console.log(body);
+		    				res.redirect("/");
+		    			}
+		    		})
+		    	}
+		    })
+		}
+	})
 })
 
 //ROUTE PER LA CREAZIONE DI UN EVENTO
 app.post("/CreaEvento", function(req, res){
 	var nomeevento = req.body.nomeevento; 
 	var ora = Number(req.body.ora);
-	var data = new Date(req.body.anno,req.body.mese,req.body.giorno);
-	var lat = Number(req.body.lat);
-	var long = Number(req.body.long);
+	var data_ = new Date(Number(req.body.anno),Number(req.body.mese)-1,Number(req.body.giorno));
+	console.log(data_);
+	var indirizzo = req.body.indirizzo;
 
-	var object = {
-		_id: nomeevento, 
-		data: data,
-		ora: ora,
-		geo: {
-			coordinates: [lat, long]
-		} ,
-		partecipanti_att: 1,
-		squadra_A: [req.user],
-		squadra_B: [],
-		creatore: req.user
-		}
+	request('https://maps.googleapis.com/maps/api/geocode/json?address='+indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+    function (error, response, body){
+	    if (!error && response.statusCode == 200) {
+	    	var indirizzo_ = JSON.parse(body);
+	    	var object = {
+				_id: nomeevento, 
+				data: data_,
+				ora: ora,
+				geo: {
+					coordinates: [indirizzo_.results[0].geometry.location.lat, indirizzo_.results[0].geometry.location.lng]
+				} ,
+				partecipanti_att: 1,
+				squadra_A: [req.user],
+				squadra_B: [],
+				creatore: req.user
+			}
 
-	Evento.create(object, function(err,foundE){
-		if(err){
-			console.log(err);
-			res.redirect("/");
-		}
-		else{
-			console.log("Evento creato con successo");
-			res.redirect("/");
-		}
+			Evento.create(object, function(err,foundE){
+				if(err){
+					console.log(err);
+					res.redirect("/");
+				}
+				else{
+					console.log("Evento creato con successo");
+					res.redirect("/");
+				}
 
-	User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
-    		if(err){
-     			 console.log(err);
-      			 res.redirect("/");
-      			 return;
-    		}
-    	foundU.eventi.push(foundE);
-    	foundU.save(function(err){
-      		if(err){
-        	console.log(err);
-        	res.redirect("/");
-      }
+				User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+		    		if(err){
+		     			 console.log(err);
+		      			 res.redirect("/");
+		      			 return;
+		    		}
+			    	foundU.eventi.push(foundE);
+			    	foundU.save(function(err){
+			      		if(err){
+			        	console.log(err);
+			        	res.redirect("/");
+			      		}	
 
+					})
+
+				})
+
+			})
+	    }
 	})
-
-})
-
-})
 
 })
 
@@ -297,16 +367,17 @@ app.get("/search",isLoggedIn,function(req,res){
 	var giorno = Number(req.query.giorno);
 	var mese = Number(req.query.mese);
 	var anno = Number(req.query.anno);
-	var data_ = new Date(anno,mese,giorno);
 	var indirizzo = req.query.indirizzo;
+	var data_ = new Date(anno,mese-1,giorno);
 
   request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
     function (error, response, body){
     if (!error && response.statusCode == 200) {
-          var info = JSON.parse(body);
 
+          var info = JSON.parse(body);
+          console.log(info);
           Evento.find({
-            "data":data_,
+            'data': data_,
             'geo':{
               $near:  {
                    $geometry: {
@@ -347,10 +418,18 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
     var squadra = req.body.Squadra;
     if(squadra=="A"){
       var A = foundE.squadra_A;
-      if(A!=null || A.length <5){
+      if(A!=null && A.length <5){
         foundE.squadra_A.push(req.user);
         foundE.save();
         res.send("Aggiunto");
+        Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: foundE.partecipanti_att+1}}, function(err, modificati){
+            	if(err){
+            		console.log(err);
+            	}
+            	else{
+            		console.log(modificati);
+            	}
+            })
       }
       else{
       res.send("Non Aggiunto");
@@ -360,12 +439,14 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
   }
         else{
           var B = foundE.squadra_B;
-            if(B!=null || B.length <5){
+            if(B!=null && B.length <5){
             foundE.squadra_B.push(req.user);
-            foundE.save();
+            foundE.save(function(err){
+            	if(err) console.log(err);
+            });
             res.send("Aggiunto");
             var par = foundE.partecipanti_att;
-            Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: par+1}}, function(err, modicati){
+            Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: par+1}}, function(err, modificati){
             	if(err){
             		console.log(err);
             	}
@@ -530,17 +611,22 @@ function isLoggedIn(req, res, next){
     res.redirect("/login");
 }
 
-//CONF GOOGLE
+//CONFIGURAZIONE AUTORIZZAZIONE GOOGLE
 
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile',"https://www.googleapis.com/auth/calendar"] }));
+app.get('/connect/google',
+  passport.authorize('google', { failureRedirect: '/login' })
+);
 
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/' }),
+app.get('/connect/google/callback',
+  passport.authorize('google', { failureRedirect: '/login' }),
   function(req, res) {
-    // Successful authentication, redirect home.
-    res.redirect('/addc');
-  });
+    var user = req.user;
+    var account = req.account;
+    res.redirect("/");
+  }
+);
+
+
 
 /**
 ================

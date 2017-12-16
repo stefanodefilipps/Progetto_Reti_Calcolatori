@@ -65,13 +65,17 @@
 	<td><input type="text" name="giorno" size="30" maxlenght="30" placeholder="Inserire giorno">
 	<td align="right">Ora:
 	<td><input type="text" name="ora" placeholder="Inserire Orario">
-	<td align="right">lat:
-	<td><input type="text" name="lat">
-	<td align="right">long:
-	<td><input type="text" name="long">
+	<td align="right">indirizzo:
+	<input type="text" name="indirizzo">
 	<input type="submit" value="Crea Evento"></td>
 </td>
 </table>
+</form>
+<a href="http://localhost:3000/connect/google">connetti a google</a>
+
+<form action="http://localhost:3000/addc" method="POST">
+	<input type="text" name="evento">
+	<input type="submit" value="aggiungi al calendario">
 </form>
 	
 	
