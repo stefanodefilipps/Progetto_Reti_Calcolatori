@@ -206,7 +206,7 @@ app.post("/CreaEvento", function(req, res){
 				data: data_,
 				ora: ora,
 				geo: {
-					coordinates: [indirizzo_.results[0].geometry.location.lat, indirizzo_.results[0].geometry.location.lng]
+					coordinates: [indirizzo_.results[0].geometry.location.lng, indirizzo_.results[0].geometry.location.lat]
 				} ,
 				partecipanti_att: 1,
 				squadra_A: [req.user],
@@ -255,9 +255,14 @@ app.get("/selezionaluogo",function(req,res){
     function (error, response, body){
     if (!error && response.statusCode == 200) {
     var info = JSON.parse(body);
-    request('https://maps.googleapis.com/maps/api/place/textsearch/json?query=calcetto&location='+info.results[0].geometry.location.lat+','+info.results[0].geometry.location.lng+
-      '&radius=3500&key=AIzaSyC-iczdxkw-J2IaVzZLtrCzY6OBX9gP9Pw', function(error, response, body){
-        if (!error && response.statusCode == 200) res.send(body);
+    console.log(info.results[0].geometry.location.lat);
+    console.log(info.results[0].geometry.location.lng);
+    request('https://maps.googleapis.com/maps/api/place/nearbysearch/json?keyword=calcetto&location='+info.results[0].geometry.location.lat+','+info.results[0].geometry.location.lng+
+      '&radius=3000&key=AIzaSyC-iczdxkw-J2IaVzZLtrCzY6OBX9gP9Pw', function(error, response, body){
+        if (!error && response.statusCode == 200){
+        	res.send(body);
+        	console.log(JSON.parse(body));
+        } 
       });
   }
 });
@@ -382,7 +387,7 @@ app.get("/search",isLoggedIn,function(req,res){
               $near:  {
                    $geometry: {
                       type: "Point" ,
-                      coordinates: [info.results[0].geometry.location.lat,info.results[0].geometry.location.lng]
+                      coordinates: [info.results[0].geometry.location.lng,info.results[0].geometry.location.lat]
                    },
               $maxDistance: 3000
               }
@@ -515,13 +520,6 @@ app.put("/abbandona",isLoggedIn,function(req,res){
       return;
     }
     console.log(contenuto);
-    foundU.eventi.pop(contenuto);
-    foundU.save(function(err){
-      if(err){
-        console.log(err);
-        res.redirect("/");
-      }
-      else{
         Evento.findById(req.body.evento).populate("squadra_"+req.body.squadra).exec(function(err,foundE){
           if(err){
             console.log(err);
@@ -551,19 +549,39 @@ app.put("/abbandona",isLoggedIn,function(req,res){
               res.send("Non sei in questa squadra");
               return;
             }
-            foundE.squadra_A.pop(contenuto);
-            foundE.save(function(err){
-              if(err){
-                console.log(err);
-                res.redirect("/");
-              }
-              else{
-                res.redirect("/");
-              }
-            })
+            if(req.body.squadra == "A"){
+            	foundE.squadra_A.pop(contenuto);
+	            foundE.save(function(err){
+	              if(err){
+	                console.log(err);
+	                res.redirect("/");
+	              }
+	              else{
+	                res.redirect("/");
+	              }
+	            })
+      		}
+      		else{
+      			foundE.squadra_A.pop(contenuto);
+	            foundE.save(function(err){
+	              if(err){
+	                console.log(err);
+	                res.redirect("/");
+	              }
+	              else{
+	                res.redirect("/");
+	              }
+	            })
+      		}
+      		foundU.eventi.pop(contenuto);
+    		foundU.save(function(err){
+    			if(err) console.log(err);
+    			foundE.partecipanti_att=foundE.partecipanti_att-1;
+    			foundE.save(function(err){
+    				if(err) console.log(err);
+    			})
+    		})
         })
-      }
-    });
   })
 })
 

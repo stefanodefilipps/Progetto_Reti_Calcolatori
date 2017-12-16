@@ -2,6 +2,9 @@
 <html>
 <head>
 	<title>home</title>
+	<script src="https://code.jquery.com/jquery-3.2.1.min.js"
+			  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+			  crossorigin="anonymous"></script>
 </head>
 <body>
 	BENVENUTO NELLA HOME
@@ -16,9 +19,8 @@
 		<input type="text" name="squadra" placeholder="Squadra da abbandonare">
 		<input type="submit" value="Abbandona" >
 	</form>
-	<form method="GET" action="http://localhost:3000/eventi">
-		<button>Mostra eventi a cui partecipo</button>
-	</form>
+	<button id="me">mostra eventi a cui partecipo</button>
+	<div id="mostraeventi"></div>
 	<form method="GET" action="http://localhost:3000/search">
 		<input type="text" name="giorno" placeholder="Giorno">
 		<input type="text" name="mese" placeholder="Mese">
@@ -26,12 +28,14 @@
 		<input type="text" name="indirizzo" placeholder="Inserisci Indirizzo">
 		<input type="submit" value="Cerca Evento">
 	</form>
-	<form action="http://localhost:3000/selezionaluogo" method="get">
+	<form action="" method="">
 	<table border = "1">
 	<td align="right">Luogo:
-	<td><input type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo"> <input type="submit" value="Cerca strutture nelle vicinanze"><tr>
+	<td><input id="ccs_indirizzo" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo"><tr>
 </table>
 </form>
+<button id="ccs">cerca centri sportivi</button>
+<div id="selezionaluogo"></div>
 	<form action="http://localhost:3000/MiAggiungo?_method=PUT" method="POST">
 	<table border = "1">
 	<td align="right">Nome Evento:
@@ -78,6 +82,38 @@
 	<input type="submit" value="aggiungi al calendario">
 </form>
 	
-	
+<script type="text/javascript">
+	$("#ccs").click(function(){
+		var ind = $("#ccs_indirizzo").val();
+		console.log(ind);
+		$.get("http://localhost:3000/selezionaluogo?indirizzo="+ind,function(data,status){
+			console.log(status);
+			if(status == "success"){
+				var d = JSON.parse(data);
+				console.log(d);
+				$("#sl").remove();
+				$("#selezionaluogo").append("<ul id=\"sl\"></ul>")
+				for (var i = 0; i < d.results.length; i++) {
+					$("#sl").append("<li>"+d.results[i].name+"</li>");
+				}
+			}
+		})
+	})
+
+	$("#me").click(function(){
+		$.get("http://localhost:3000/eventi",function(data,status){
+			console.log(status);
+			if(status == "success"){
+				var d = JSON.parse(data);
+				console.log(d);
+				$("#mose").remove();
+				$("#mostraeventi").append("<ul id=\"mose\"></ul>")
+				for (var i = 0; i < d.ev.length; i++) {
+					$("#mose").append("<li>"+d.ev[i]._id+"</li>");
+				}
+			}
+		})
+	})
+</script>
 </body>
 </html>
