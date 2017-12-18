@@ -26,8 +26,9 @@
 		<input type="text" name="mese" placeholder="Mese">
 		<input type="text" name="anno" placeholder="Anno">
 		<input type="text" name="indirizzo" placeholder="Inserisci Indirizzo">
-		<input type="submit" value="Cerca Evento">
 	</form>
+	<button id = "search">mostra eventi con le caratteristiche specificate</button>
+	<div id="s"></div>
 	<form action="" method="">
 	<table border = "1">
 	<td align="right">Luogo:
@@ -114,6 +115,21 @@
 			}
 		})
 	})
+
+	$("#search").click(function()){
+		$.get("http://localhost:3000/search",function(data,status){
+			console.log(status);
+			if(status == "success"){
+				var d = JSON.parse(data);
+				console.log(d);
+				$("#se").remove();
+				$("#search").append("<ul id=\"se\"></ul>")
+				for (var i = 0; i < d.ev.length; i++) {
+					$("#se").append("<li>"+d.ev[i]._id+"</li>");
+				}
+			}
+		})
+	}
 </script>
 </body>
 </html>
