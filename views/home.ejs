@@ -53,6 +53,7 @@
 	</form>
 
 
+
 	<h1> Cerca Evento </h1>
 	<form method="GET" action="http://localhost:3000/search">
 		<table border = "1">
@@ -67,6 +68,13 @@
 		<td align="right"> Indirizzo:</td>
 		<td><input type="text" name="indirizzo" placeholder="Inserisci indirizzo"></td></tr>
 	</table>
+	<button id="me">mostra eventi a cui partecipo</button>
+	<div id="mostraeventi"></div>
+	<form method="" action="">
+		<input type="text" id = "giorno_s" name="giorno" placeholder="Giorno">
+		<input type="text" id = "mese_s" name="mese" placeholder="Mese">
+		<input type="text" id = "anno_s" name="anno" placeholder="Anno">
+		<input type="text" id = "indirizzo_s" name="indirizzo" placeholder="Inserisci Indirizzo">
 	</form>
 	<div id="s"></div>
 
@@ -179,15 +187,19 @@
 
 
 	$("#search").click(function(){
-		$.get("http://localhost:3000/search",function(data,status){
+		var giorno = $("#giorno_s").val();
+		var mese = $("#mese_s").val();
+		var anno = $("#anno_s").val();
+		var indirizzo = $("#indirizzo_s").val();
+		$.get("http://localhost:3000/search?giorno="+giorno+"&mese="+mese+"&anno="+anno+"&indirizzo="+indirizzo,function(data,status){
 			console.log(status);
 			if(status == "success"){
 				var d = JSON.parse(data);
 				console.log(d);
 				$("#se").remove();
-				$("#search").append("<ul id=\"se\"></ul>")
-				for (var i = 0; i < d.ev.length; i++) {
-					$("#se").append("<li>"+d.ev[i]._id+"</li>");
+				$("#s").append("<ul id=\"se\"></ul>")
+				for (var i = 0; i < d.length; i++) {
+					$("#se").append("<li>"+d[i]._id+"</li>");
 				}
 			}
 		})
