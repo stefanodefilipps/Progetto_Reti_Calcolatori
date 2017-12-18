@@ -14,13 +14,18 @@
 	<form action="http://localhost:3000/logoutFromFacebook" method="GET">
 		<button>Log-Out-Facebook</button>
 	</form>
+
+
 	<form method="POST" action="http://localhost:3000/abbandona?_method=PUT">
 		<input type="text" name="evento" placeholder="Evento da abbandonare">
 		<input type="text" name="squadra" placeholder="Squadra da abbandonare">
 		<input type="submit" value="Abbandona" >
 	</form>
-	<button id="me">mostra eventi a cui partecipo</button>
+
+
+	<button id="me">Mostra Eventi A Cui Partecipo</button>
 	<div id="mostraeventi"></div>
+	
 	<form method="GET" action="http://localhost:3000/search">
 		<input type="text" name="giorno" placeholder="Giorno">
 		<input type="text" name="mese" placeholder="Mese">
@@ -28,13 +33,17 @@
 		<input type="text" name="indirizzo" placeholder="Inserisci Indirizzo">
 		<input type="submit" value="Cerca Evento">
 	</form>
+
+
 	<form action="" method="">
 	<table border = "1">
 	<td align="right">Luogo:
-	<td><input id="ccs_indirizzo" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo"><tr>
+	<td><input id="ccs_indirizzo" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo">
+	<td><button id="ccs">Cerca Centri Sportivi</button></td></td></td>
 </table>
 </form>
-<button id="ccs">cerca centri sportivi</button>
+
+
 <div id="selezionaluogo"></div>
 	<form action="http://localhost:3000/MiAggiungo?_method=PUT" method="POST">
 	<table border = "1">
@@ -46,6 +55,8 @@
 </td>
 </table>
 </form>
+
+
 	<form action="http://localhost:3000/feedback?_method=PUT" method="POST">
 	<table border = "1">
 	<td align="right">Evento Giocato:
@@ -57,6 +68,8 @@
 </td>
 </table>
 </form>
+
+
 	<form action="http://localhost:3000/CreaEvento" method="POST">
 	<table border = "1">
 	<td align="right">Nome:
@@ -75,13 +88,16 @@
 </td>
 </table>
 </form>
-<a href="http://localhost:3000/connect/google">connetti a google</a>
+
+
+<a href="http://localhost:3000/connect/google">Connetti a Google</a>
 
 <form action="http://localhost:3000/addc" method="POST">
 	<input type="text" name="evento">
 	<input type="submit" value="aggiungi al calendario">
 </form>
 	
+
 <script type="text/javascript">
 	$("#ccs").click(function(){
 		var ind = $("#ccs_indirizzo").val();
@@ -114,6 +130,8 @@
 			}
 		})
 	})
+
+	$()
 </script>
 </body>
 </html>
