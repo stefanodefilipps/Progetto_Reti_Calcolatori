@@ -1,101 +1,147 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>home</title>
+	<title>Sportify</title>
 	<script src="https://code.jquery.com/jquery-3.2.1.min.js"
 			  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
 			  crossorigin="anonymous"></script>
 </head>
 <body>
-	BENVENUTO NELLA HOME
-	<form action="http://localhost:3000/logout" method="GET">
-		<button>Log-Out</button>
-	</form>
-	<form action="http://localhost:3000/logoutFromFacebook" method="GET">
-		<button>Log-Out-Facebook</button>
-	</form>
-
-
-	<form method="POST" action="http://localhost:3000/abbandona?_method=PUT">
-		<input type="text" name="evento" placeholder="Evento da abbandonare">
-		<input type="text" name="squadra" placeholder="Squadra da abbandonare">
-		<input type="submit" value="Abbandona" >
-	</form>
-
-
-	<button id="me">Mostra Eventi A Cui Partecipo</button>
-	<div id="mostraeventi"></div>
+	<h1>BENVENUTO IN SPORTIFY</h1>
 	
-	<form method="GET" action="http://localhost:3000/search">
-		<input type="text" name="giorno" placeholder="Giorno">
-		<input type="text" name="mese" placeholder="Mese">
-		<input type="text" name="anno" placeholder="Anno">
-		<input type="text" name="indirizzo" placeholder="Inserisci Indirizzo">
-		<input type="submit" value="Cerca Evento">
+
+		<h1>Crea Evento </h1>
+
+		<h3> Cerca struttura in base alla tua posizione </h3>
+		<form action="" method="">
+		<table border = "1">
+		<td align="right">Luogo:</td>
+		<td><input id="ccs_indirizzo" type="text" name="indirizzo" placeholder="Inserisci Indirizzo"></td>
+		<td><button id="ccs">Cerca Centri Sportivi</button></td>
+		</table>
+		</form>	
+		<div id="selezionaluogo"></div>
+
+		<h3> Compila i campi della form </h3>
+		<form action="http://localhost:3000/CreaEvento" method="POST">
+		<table border = "1">
+		<tr><td align="right">Nome:</td>
+		<td><input type="text" name="nomeevento" placeholder="Nome Evento"></td>
+		<td align="right">Indirizzo:</td>
+		<td><input type="text" name="indirizzo" placeholder="Inserisci Indirizzo" disabled="disabled"></td>
+		<td rowspan = 3><input type="submit" value="Crea Evento"></td>
+		</tr>
+		<tr><td align="right">Anno:</td>
+		<td><input type="text" name="anno" placeholder="Inserire anno"></td>
+		<td align="right">Mese:</td>
+		<td><input type="text" name="mese" placeholder="Inserire mese"></td></tr>
+		<tr><td align="right">Giorno:</td>
+		<td><input type="text" name="giorno" placeholder="Inserire giorno"></td>
+		<td align="right">Ora:</td>
+		<td><input type="text" name="ora" placeholder="Inserire Orario"></td></tr>
+	</table>
+	</form>
+
+	<h3> Ricevi una notifica sul tuo Google Calendar </h3>
+	<a href="http://localhost:3000/connect/google">Connettiti a Google</a>
+	<form action="http://localhost:3000/addc" method="POST">
+		<table border = "1">
+		<td align = "right"> Evento:</td>
+		<td><input type="text" name="evento" placeholder="Inserisci nome evento"></td>
+		<td><input type="submit" value="Aggiungi a Google Calendar"></td>
+	</table>
 	</form>
 
 
-	<form action="" method="">
+	<h1> Cerca Evento </h1>
+	<form method="GET" action="http://localhost:3000/search">
+		<table border = "1">
+		<tr><td align="right"> Giorno:
+		<td><input type="text" name="giorno" placeholder="Inserisci giorno"></td>
+		<td align="right"> Mese:</td>
+		<td><input type="text" name="mese" placeholder="Inserisci mese"></td></td>
+		<td rowspan=2> <button id = "search">Mostra Eventi Con Le Caratteristiche Specificate</button></td>
+		</tr>
+		<tr><td align="right"> Anno:</td>
+		<td><input type="text" name="anno" placeholder="Inserisci anno"></td>
+		<td align="right"> Indirizzo:</td>
+		<td><input type="text" name="indirizzo" placeholder="Inserisci indirizzo"></td></tr>
+	</table>
+	</form>
+	<div id="s"></div>
+
+
+
+	<h1> Miei Eventi </h1>
 	<table border = "1">
-	<td align="right">Luogo:
-	<td><input id="ccs_indirizzo" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo">
-	<td><button id="ccs">Cerca Centri Sportivi</button></td></td></td>
-</table>
-</form>
+	<td><button id="me">Mostra Eventi A Cui Partecipo</button></td>
+	</table>
+	<div id="mostraeventi"></div>
 
 
-<div id="selezionaluogo"></div>
+	<h1> Partecipa </h1>
 	<form action="http://localhost:3000/MiAggiungo?_method=PUT" method="POST">
 	<table border = "1">
 	<td align="right">Nome Evento:
 	<td><input type="text" name="evento" size="20" maxlength="20" placeholder="Inserisci Nome Evento">
 	<label><input type="radio" name="Squadra" value="A"/>SquadraA</label>
 	<label><input type="radio" name="Squadra" value="B"/>SquadraB</label>
-	<input type="submit" value="Aggiungimi ad evento"></td>
-</td>
-</table>
-</form>
+	<td><input type="submit" value="Aggiungimi ad evento"></td>
+	</td>
+	</table>
+	</form>
+
+	
+	<h1> Abbandona </h1>
+	<form method="POST" action="http://localhost:3000/abbandona?_method=PUT">
+		<table border = "1">
+		<td align = "right"> Evento: </td>
+		<td><input type="text" name="evento" placeholder="Evento da abbandonare"></td>
+		<td align = "right"> Squadra: </td>
+		<td><input type="text" name="squadra" placeholder="Squadra da abbandonare"></td>
+		<td><input type="submit" value="Abbandona"></td>
+	</table>
+	</form>
+
+	<h1> Elimina Evento</h1>
+	<form method="POST" action="http://localhost:3000/cancellaEvento?_method=DELETE">
+		<table border = "1">
+			<td align = "right"> Evento:
+			<td><input type="text" name="eventoc" placeholder="Evento da eliminare"></td>
+			<td><input type="submit" value="Elimina"></td>
+		</td>
+	</table>
+	</form>
 
 
+	<h1> Rilascia la tua recensione </h1>
 	<form action="http://localhost:3000/feedback?_method=PUT" method="POST">
 	<table border = "1">
 	<td align="right">Evento Giocato:
 	<td><input type="text" name="eventoterminato" size="30" maxlenght="30" placeholder="Nome Evento Giocato">
-	<td align="right">Nome Utente:
+	<td align="right">Utente:
 	<td><input type="text" name="emailrecensito" size="30" maxlenght="30" placeholder="Email Utente Da Recensire">
-	<td><input type="text" name="valore" size="15" maxlength="1" placeholder="Inserisci Valore 0-9">
-	<input type="submit" value="Rilascia feedback"></td>
+	<td><input type="text" name="valore" size="15" maxlength="1" placeholder="Inserisci Valore 0-9"></td>
+	<td><input type="submit" value="Rilascia feedback"></td>
 </td>
 </table>
 </form>
 
 
-	<form action="http://localhost:3000/CreaEvento" method="POST">
-	<table border = "1">
-	<td align="right">Nome:
-	<td><input type="text" name="nomeevento" size="30" maxlenght="30" placeholder="Nome Evento">
-	<td align="right">Anno:
-	<td><input type="text" name="anno" size="30" maxlenght="30" placeholder="Inserire anno">
-	<td align="right">Mese:
-	<td><input type="text" name="mese" size="30" maxlenght="30" placeholder="Inserire mese">
-	<td align="right">Giorno:
-	<td><input type="text" name="giorno" size="30" maxlenght="30" placeholder="Inserire giorno">
-	<td align="right">Ora:
-	<td><input type="text" name="ora" placeholder="Inserire Orario">
-	<td align="right">indirizzo:
-	<input type="text" name="indirizzo">
-	<input type="submit" value="Crea Evento"></td>
-</td>
-</table>
-</form>
 
+	<h1> Esci </h1>
+<form action="http://localhost:3000/logout" method="GET">
+		<table border = "1">
+		<td><button>Log-Out</button></td>
+	</table>
+	</form>
+	
 
-<a href="http://localhost:3000/connect/google">Connetti a Google</a>
-
-<form action="http://localhost:3000/addc" method="POST">
-	<input type="text" name="evento">
-	<input type="submit" value="aggiungi al calendario">
-</form>
+	<form action="http://localhost:3000/logoutFromFacebook" method="GET">
+		<table border = "1">
+		<td><button>Log-Out-Facebook</button></td>
+	</table>
+	</form>
 	
 
 <script type="text/javascript">
@@ -110,7 +156,7 @@
 				$("#sl").remove();
 				$("#selezionaluogo").append("<ul id=\"sl\"></ul>")
 				for (var i = 0; i < d.results.length; i++) {
-					$("#sl").append("<li>"+d.results[i].name+"</li>");
+					$("#sl").append("<li>"+d.results[i].name+"<button>Seleziona</button> </li>");
 				}
 			}
 		})
@@ -131,7 +177,22 @@
 		})
 	})
 
-	$()
+
+	$("#search").click(function(){
+		$.get("http://localhost:3000/search",function(data,status){
+			console.log(status);
+			if(status == "success"){
+				var d = JSON.parse(data);
+				console.log(d);
+				$("#se").remove();
+				$("#search").append("<ul id=\"se\"></ul>")
+				for (var i = 0; i < d.ev.length; i++) {
+					$("#se").append("<li>"+d.ev[i]._id+"</li>");
+				}
+			}
+		})
+	})
+
 </script>
 </body>
 </html>
