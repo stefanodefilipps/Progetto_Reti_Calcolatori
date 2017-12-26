@@ -12,6 +12,9 @@ var express     		= require("express"),
     FormData 			= require('form-data'),
 	FacebookStrategy 	= require('passport-facebook').Strategy;
 	GoogleStrategy 		= require('passport-google-oauth20').Strategy;
+  amqp              = require('amqplib/callback_api');
+  
+
 /**
 ============================================
 SETTAGGIO DEI MODULI CHE VERRANNO UTILIZZATI
@@ -28,6 +31,7 @@ app.use(require("express-session")({
     resave: false,
     saveUninitialized: false
 }));
+
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -119,6 +123,9 @@ passport.deserializeUser(function(id, done) {
 	});
 });
 
+
+  
+
 /**
 ==================================================================
 QUI VANNO MESSE TUTTE I ROUTE DELLE API DEL SERVIZIO DA SVILUPPARE
@@ -195,57 +202,136 @@ app.post("/CreaEvento", function(req, res){
 	var ora = Number(req.body.ora);
 	var data_ = new Date(Number(req.body.anno),Number(req.body.mese)-1,Number(req.body.giorno));
 	console.log(data_);
-	var indirizzo = req.body.indirizzo;
+  console.log(req.body);
+  console.log(req.body.lat+" "+req.body.lng);
+	var lat = Number(req.body.lat);
+  var lng = Number(req.body.lng);
+  console.log(lat+" "+lng);
+  var object = {
+        _id: nomeevento, 
+        data: data_,
+        ora: ora,
+        geo: {
+          coordinates: [lng,lat]
+        } ,
+        partecipanti_att: 1,
+        squadra_A: [req.user],
+        squadra_B: [],
+        creatore: req.user
+      }
 
-	request('https://maps.googleapis.com/maps/api/geocode/json?address='+indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
-    function (error, response, body){
-	    if (!error && response.statusCode == 200) {
-	    	var indirizzo_ = JSON.parse(body);
-	    	var object = {
-				_id: nomeevento, 
-				data: data_,
-				ora: ora,
-				geo: {
-					coordinates: [indirizzo_.results[0].geometry.location.lng, indirizzo_.results[0].geometry.location.lat]
-				} ,
-				partecipanti_att: 1,
-				squadra_A: [req.user],
-				squadra_B: [],
-				creatore: req.user
-			}
+      Evento.create(object, function(err,foundE){
+        if(err){
+          console.log(err);
+          res.redirect("/");
+        }
+        else{
+          console.log("Evento creato con successo");
+          res.redirect("/");
+        }
 
-			Evento.create(object, function(err,foundE){
-				if(err){
-					console.log(err);
-					res.redirect("/");
-				}
-				else{
-					console.log("Evento creato con successo");
-					res.redirect("/");
-				}
+        User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+            if(err){
+               console.log(err);
+                 res.redirect("/");
+                 return;
+            }
+            foundU.eventi.push(foundE);
+            amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
+            conn.createChannel(function(err, ch) {
+            if(err){
+            console.log("errore nella creazione canale");
+            }
+            ch.assertExchange(foundE._id, 'fanout', {durable: false});
+            ch.assertQueue(req.user.email, {exclusive: false}, function(err, q) {
+              console.log(" creazione coda %s.", q.queue);
+              ch.bindQueue(q.queue, foundE._id, req.user.email);
+              ch.publish(foundE._id, '', new Buffer(req.user.email+" si è aggiunto alla squadra A dell'evento "+foundE._id));
+              console.log("messaggio inviato");
+            });
+      
+          });
+          setTimeout(function() { conn.close();  }, 500);
+        });
+        
+            foundU.save(function(err){
+                if(err){
+                console.log(err);
+                res.redirect("/");
+                } 
 
-				User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
-		    		if(err){
-		     			 console.log(err);
-		      			 res.redirect("/");
-		      			 return;
-		    		}
-			    	foundU.eventi.push(foundE);
-			    	foundU.save(function(err){
-			      		if(err){
-			        	console.log(err);
-			        	res.redirect("/");
-			      		}	
+          })
 
-					})
+        })
 
-				})
-
-			})
-	    }
-	})
-
+      })
 })
+
+//elimina evento
+app.post("/cancellaEvento",function(req,res){
+  Evento.findById(req.body.eventoc).populate("creatore").populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
+    if(err){
+       res.status(500).send(err)
+    }
+     if (foundE) {
+            console.log(foundE);
+            if(foundE.creatore.equals(req.user._id)){
+              User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+                  foundU.eventi.pop(foundE);
+                  foundU.save(function(err){
+                  if(err){
+                  console.log(err);
+                  res.redirect("/");
+                 }
+                 });
+              });
+              foundE.squadra_A.forEach(function(e){
+                User.findById(e._id).populate("eventi").exec(function(err,foundU){
+                  foundU.eventi.pop(foundE);
+                    foundU.save(function(err){
+                    if(err){
+                    console.log(err);
+                    res.redirect("/");
+                    }
+                    });
+                });
+              });
+                
+              foundE.squadra_B.forEach(function(e){
+               User.findById(e._id).populate("eventi").exec(function(err,foundU){
+                  foundU.eventi.pop(foundE);
+                    foundU.save(function(err){
+                    if(err){
+                    console.log(err);
+                    res.redirect("/");
+                    }
+                    });
+                });
+              });
+              amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
+              conn.createChannel(function(err, ch) {
+              if(err){
+                  console.log("errore nella creazione canale");
+              }
+                  ch.assertExchange(foundE._id, 'fanout', {durable: false});
+                  ch.publish(foundE._id, '', new Buffer("***ATTENZIONE*** L'evento "+foundE._id+" è stato cancellato"));
+                  ch.deleteExchange(foundE._id);
+              });
+                  setTimeout(function() { conn.close();  }, 500);
+              });
+              Evento.findByIdAndRemove(foundE._id, function(err, evento){  
+              if(err) res.status(404).send("non hai i permessi");
+              });
+              
+            }
+            else res.status(404).send("non hai i permessi");
+            
+        } else {
+        res.status(404).send("No event found with that ID");
+    };
+  });
+});
+
 
 
 
@@ -262,6 +348,9 @@ app.get("/selezionaluogo",function(req,res){
         if (!error && response.statusCode == 200){
         	res.send(body);
         	console.log(JSON.parse(body));
+          JSON.parse(body).results.forEach(function(e){
+            console.log(e.geometry.location.lat+" "+e.geometry.location.lng);
+          })
         } 
       });
   }
@@ -380,7 +469,7 @@ app.get("/search",isLoggedIn,function(req,res){
     if (!error && response.statusCode == 200) {
 
           var info = JSON.parse(body);
-          console.log(info);
+          console.log(info.results[0].geometry.location);
           Evento.find({
             'data': data_,
             'geo':{
@@ -389,7 +478,7 @@ app.get("/search",isLoggedIn,function(req,res){
                       type: "Point" ,
                       coordinates: [info.results[0].geometry.location.lng,info.results[0].geometry.location.lat]
                    },
-              $maxDistance: 3000
+              $maxDistance: 3500
               }
             }
           }).exec(function(err,events){
@@ -398,6 +487,7 @@ app.get("/search",isLoggedIn,function(req,res){
               res.redirect("/");
             }
             else{
+              console.log(events);
               res.send(JSON.stringify(events));
             }
           })
@@ -410,7 +500,33 @@ app.get("/search",isLoggedIn,function(req,res){
 
 
 
-//ROUTE PER L'AGGIUNTA DELL'UTENTE AD UN EVENTO SPECIFICATO
+//ROUTE PER L'AGGIUNTA DELL'UTENTE AD UN EVENTO SPECIFICATOz
+app.get("/dammievento",isLoggedIn,function(req,res){
+  Evento.findById(req.query.ev).populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
+
+      res.send(JSON.stringify(foundE));
+  });
+});
+
+app.get("/chisono",isLoggedIn,function(req,res){
+  amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
+          conn.createChannel(function(err, ch) {
+            if(err){
+            console.log("errore nella creazione canale");
+            }
+            console.log(req.user.email);
+            
+            ch.assertQueue(req.user.email, {exclusive: false}, function(err, q) {
+              console.log(" creazione coda %s.", q.queue);
+            });
+      
+          });
+          setTimeout(function() { conn.close();  }, 500);
+        });
+  res.send(req.user.email);
+   
+
+})
 app.put("/MiAggiungo", isLoggedIn, function(req, res){
   Evento.findById(req.body.evento).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
       if(err){
@@ -427,6 +543,24 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
         foundE.squadra_A.push(req.user);
         foundE.save();
         res.send("Aggiunto");
+        amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
+          conn.createChannel(function(err, ch) {
+            if(err){
+            console.log("errore nella creazione canale");
+            }
+            ch.assertExchange(foundE._id, 'fanout', {durable: false});
+            ch.assertQueue(req.user.email, {exclusive: false}, function(err, q) {
+              console.log(" creazione coda %s.", q.queue);
+              ch.bindQueue(q.queue, foundE._id, req.user.email);
+              ch.publish(foundE._id, '', new Buffer(req.user.email+" si è aggiunto alla squadra A dell'evento "+foundE._id));
+              console.log("messaggio inviato");
+            });
+      
+          });
+          setTimeout(function() { conn.close();  }, 500);
+        });
+        
+
         Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: foundE.partecipanti_att+1}}, function(err, modificati){
             	if(err){
             		console.log(err);
@@ -450,6 +584,22 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
             	if(err) console.log(err);
             });
             res.send("Aggiunto");
+            amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
+          conn.createChannel(function(err, ch) {
+            if(err){
+            console.log("errore nella creazione canale");
+            }
+            ch.assertExchange(foundE._id, 'fanout', {durable: false});
+            ch.assertQueue(req.user.email, {exclusive: false}, function(err, q) {
+              console.log(" creazione coda %s.", q.queue);
+              ch.bindQueue(q.queue, foundE._id, req.user.email);
+              ch.publish(foundE._id, '', new Buffer(req.user.email+" si è aggiunto alla squadra B dell'evento "+foundE._id));
+              console.log("messaggio inviato");
+            });
+      
+          });
+          setTimeout(function() { conn.close();  }, 500);
+        });
             var par = foundE.partecipanti_att;
             Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: par+1}}, function(err, modificati){
             	if(err){
@@ -526,6 +676,20 @@ app.put("/abbandona",isLoggedIn,function(req,res){
             res.redirect("/");
             return;
           }
+          amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
+          conn.createChannel(function(err, ch) {
+            if(err){
+            console.log("errore nella creazione canale");
+            }
+            ch.assertExchange(foundE._id, 'fanout', {durable: false});
+            
+              
+              ch.publish(foundE._id, '', new Buffer(req.user.email+" ha abbandonato l'evento  "+foundE._id));
+              ch.unbindQueue(req.user.email, foundE._id, req.user.email);
+      
+          });
+          setTimeout(function() { conn.close();  }, 500);
+        });
             console.log(req.user._id);
             var contenuto;
             if(req.body.squadra == "A"){

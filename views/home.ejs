@@ -1,144 +1,136 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Sportify</title>
+	<title>home</title>
 	<script src="https://code.jquery.com/jquery-3.2.1.min.js"
 			  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
 			  crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
 </head>
-<body>
+<body onLoad="start();">
+
 	<h1>BENVENUTO IN SPORTIFY</h1>
-	
 
-		<h1>Crea Evento </h1>
+	<h1>Crea Evento </h1>
 
-		<h3> Cerca struttura in base alla tua posizione </h3>
-		<form action="" method="">
+	<h3><li> Cerca struttura in base alla tua posizione </h3></li>
+	<form action="" method="">
 		<table border = "1">
-		<td align="right">Luogo:</td>
-		<td><input id="ccs_indirizzo" type="text" name="indirizzo" placeholder="Inserisci Indirizzo"></td>
-		<td><button id="ccs">Cerca Centri Sportivi</button></td>
+		<td align="right">Luogo:
+		<td><input id="ccs_indirizzo" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo"><tr>
 		</table>
-		</form>	
-		<div id="selezionaluogo"></div>
+	</form>
+	<button id="ccs">Cerca Centri Sportivi</button>
+	<div id="selezionaluogo"></div>
 
-		<h3> Compila i campi della form </h3>
-		<form action="http://localhost:3000/CreaEvento" method="POST">
+	<h3><li> Compila i campi della form per creare l'evento </h3></li>
+	<form id="crea_ev" action="http://localhost:3000/CreaEvento" method="POST">
 		<table border = "1">
 		<tr><td align="right">Nome:</td>
-		<td><input type="text" name="nomeevento" placeholder="Nome Evento"></td>
-		<td align="right">Indirizzo:</td>
-		<td><input type="text" name="indirizzo" placeholder="Inserisci Indirizzo" disabled="disabled"></td>
-		<td rowspan = 3><input type="submit" value="Crea Evento"></td>
-		</tr>
-		<tr><td align="right">Anno:</td>
-		<td><input type="text" name="anno" placeholder="Inserire anno"></td>
-		<td align="right">Mese:</td>
-		<td><input type="text" name="mese" placeholder="Inserire mese"></td></tr>
-		<tr><td align="right">Giorno:</td>
-		<td><input type="text" name="giorno" placeholder="Inserire giorno"></td>
-		<td align="right">Ora:</td>
+		<td><input type="text" name="nomeevento" size="30" maxlenght="30" placeholder="Nome Evento"></td>
+		<td align="right">Anno:</td>
+		<td><input type="text" name="anno" size="30" maxlenght="30" placeholder="Inserire anno"></td></tr>
+		<tr><td align="right">Mese:</td>
+		<td><input type="text" name="mese" size="30" maxlenght="30" placeholder="Inserire mese"></td>
+		<td align="right">Giorno:</td>
+		<td><input type="text" name="giorno" size="30" maxlenght="30" placeholder="Inserire giorno"></td></tr>
+		<tr><td align="right">Ora:</td>
 		<td><input type="text" name="ora" placeholder="Inserire Orario"></td></tr>
-	</table>
+		<tr style="display:none"><td align="right">lng:</td>
+		<td><input id = "lng" type="text" name="lng" size="30" maxlenght="30" placeholder="Inserisci indirizzo" readonly="true"></td></tr>
+		<tr style="display:none"><td align="right">lat:</td>
+		<td><input id = "lat" type="text" name="lat" size="30" maxlenght="30" placeholder="Inserisci indirizzo" readonly="true"></td></tr>
+		<td><input type="submit" value="Crea Evento"></td>
+		</table>
 	</form>
 
-	<h3> Ricevi una notifica sul tuo Google Calendar </h3>
+
+	<h3><li> Ricevi una notifica sul tuo Google Calendar </h3></li>
 	<a href="http://localhost:3000/connect/google">Connettiti a Google</a>
 	<form action="http://localhost:3000/addc" method="POST">
 		<table border = "1">
 		<td align = "right"> Evento:</td>
-		<td><input type="text" name="evento" placeholder="Inserisci nome evento"></td>
+		<td><input type="text" name="evento" size="30" maxlenght="30" placeholder="Inserisci indirizzo"></td>
 		<td><input type="submit" value="Aggiungi a Google Calendar"></td>
-	</table>
+		</table>
 	</form>
-
 
 
 	<h1> Cerca Evento </h1>
-	<form method="GET" action="http://localhost:3000/search">
-		<table border = "1">
-		<tr><td align="right"> Giorno:
-		<td><input type="text" name="giorno" placeholder="Inserisci giorno"></td>
-		<td align="right"> Mese:</td>
-		<td><input type="text" name="mese" placeholder="Inserisci mese"></td></td>
-		<td rowspan=2> <button id = "search">Mostra Eventi Con Le Caratteristiche Specificate</button></td>
-		</tr>
-		<tr><td align="right"> Anno:</td>
-		<td><input type="text" name="anno" placeholder="Inserisci anno"></td>
-		<td align="right"> Indirizzo:</td>
-		<td><input type="text" name="indirizzo" placeholder="Inserisci indirizzo"></td></tr>
-	</table>
-	<button id="me">mostra eventi a cui partecipo</button>
-	<div id="mostraeventi"></div>
 	<form method="" action="">
-		<input type="text" id = "giorno_s" name="giorno" placeholder="Giorno">
-		<input type="text" id = "mese_s" name="mese" placeholder="Mese">
-		<input type="text" id = "anno_s" name="anno" placeholder="Anno">
-		<input type="text" id = "indirizzo_s" name="indirizzo" placeholder="Inserisci Indirizzo">
+		<table border = "1">
+		<td align = "right"> Giorno:</td>
+		<td><input type="text" id = "giorno_s" name="giorno" placeholder="Inserisci giorno"></td>
+		<td align = "right"> Mese:</td>
+		<td><input type="text" id = "mese_s" name="mese" placeholder="Inserisci mese"></td>
+		<td align = "right"> Anno:</td>
+		<td><input type="text" id = "anno_s" name="anno" placeholder="Inserisci anno"></td>
+		<td align = "right"> Indirizzo:</td>
+		<td><input type="text" id = "indirizzo_s" name="indirizzo" placeholder="Inserisci Indirizzo"></td>
+	</table>
 	</form>
+	<button id = "search">Mostra Eventi Con Le Caratteristiche Specificate</button>
 	<div id="s"></div>
 
 
-
 	<h1> Miei Eventi </h1>
-	<table border = "1">
-	<td><button id="me">Mostra Eventi A Cui Partecipo</button></td>
-	</table>
+	<button id="me">Mostra Eventi A Cui Partecipo</button>
 	<div id="mostraeventi"></div>
 
 
 	<h1> Partecipa </h1>
 	<form action="http://localhost:3000/MiAggiungo?_method=PUT" method="POST">
-	<table border = "1">
-	<td align="right">Nome Evento:
-	<td><input type="text" name="evento" size="20" maxlength="20" placeholder="Inserisci Nome Evento">
-	<label><input type="radio" name="Squadra" value="A"/>SquadraA</label>
-	<label><input type="radio" name="Squadra" value="B"/>SquadraB</label>
-	<td><input type="submit" value="Aggiungimi ad evento"></td>
-	</td>
-	</table>
+		<table border = "1">
+		<td align="right">Nome Evento:
+		<td><input type="text" name="evento" size="20" maxlength="20" placeholder="Inserisci Nome Evento">
+		<label><input type="radio" name="Squadra" value="A"/>SquadraA</label>
+		<label><input type="radio" name="Squadra" value="B"/>SquadraB</label>
+		<input type="submit" value="Aggiungimi ad evento"></td>
+		</td>
+		</table>
 	</form>
 
-	
+
+
 	<h1> Abbandona </h1>
 	<form method="POST" action="http://localhost:3000/abbandona?_method=PUT">
 		<table border = "1">
-		<td align = "right"> Evento: </td>
+		<td align = "right"> Evento:</td>
 		<td><input type="text" name="evento" placeholder="Evento da abbandonare"></td>
-		<td align = "right"> Squadra: </td>
+		<td align = "right"> Squadra:</td>
 		<td><input type="text" name="squadra" placeholder="Squadra da abbandonare"></td>
 		<td><input type="submit" value="Abbandona"></td>
-	</table>
+		</table>
 	</form>
 
-	<h1> Elimina Evento</h1>
-	<form method="POST" action="http://localhost:3000/cancellaEvento?_method=DELETE">
+
+	<h1> Elimina Evento </h1>
+	<form action="http://localhost:3000/cancellaEvento" method="POST">
 		<table border = "1">
-			<td align = "right"> Evento:
-			<td><input type="text" name="eventoc" placeholder="Evento da eliminare"></td>
-			<td><input type="submit" value="Elimina"></td>
-		</td>
-	</table>
+		<td align = "right"> Evento:</td>
+		<td><input type="text" name="eventoc" placeholder="Inserisci evento da eliminare"></td>
+		<td><input type="submit" value="Elimina Evento"></td>
+		</table>
 	</form>
 
 
-	<h1> Rilascia la tua recensione </h1>
-	<form action="http://localhost:3000/feedback?_method=PUT" method="POST">
-	<table border = "1">
-	<td align="right">Evento Giocato:
-	<td><input type="text" name="eventoterminato" size="30" maxlenght="30" placeholder="Nome Evento Giocato">
-	<td align="right">Utente:
-	<td><input type="text" name="emailrecensito" size="30" maxlenght="30" placeholder="Email Utente Da Recensire">
-	<td><input type="text" name="valore" size="15" maxlength="1" placeholder="Inserisci Valore 0-9"></td>
-	<td><input type="submit" value="Rilascia feedback"></td>
-</td>
-</table>
-</form>
 
+	<h1> Rilascia recensione </h1>
+	<form action="http://localhost:3000/feedback?_method=PUT" method="POST">
+		<table border = "1">
+		<td align="right">Evento Giocato:
+		<td><input type="text" name="eventoterminato" size="30" maxlenght="30" placeholder="Nome Evento Giocato">
+		<td align="right">Nome Utente:
+		<td><input type="text" name="emailrecensito" size="30" maxlenght="30" placeholder="Email Utente Da Recensire">
+		<td><input type="text" name="valore" size="15" maxlength="1" placeholder="Inserisci Valore 0-9">
+		<input type="submit" value="Rilascia feedback"></td>
+		</td>
+		</table>
+	</form>
 
 
 	<h1> Esci </h1>
-<form action="http://localhost:3000/logout" method="GET">
+	<form action="http://localhost:3000/logout" method="GET">
 		<table border = "1">
 		<td><button>Log-Out</button></td>
 	</table>
@@ -150,9 +142,43 @@
 		<td><button>Log-Out-Facebook</button></td>
 	</table>
 	</form>
+
+
+
+
+
+	
+	<script type="text/javascript">
 	
 
-<script type="text/javascript">
+	function start(){
+		$.get("http://localhost:3000/chisono",function(data,status){
+			console.log(status);
+			if(status == "success"){
+				
+				console.log(data);
+				var ws=new WebSocket('ws://172.17.0.2:15674/ws');
+        		var client = Stomp.over(ws);
+        		var on_connect = function() {
+        		console.log('connected');
+        		};
+        		var on_error =  function() {
+        		console.log('error');
+      		};
+      		var on_connect = function(x) {
+      		
+          	id = client.subscribe("/amq/queue/"+data, function(d) {
+             alert(d.body);
+          });
+      };
+     
+       client.connect('guest', 'guest', on_connect, on_error, '/');
+				
+				};
+			});
+		};
+        
+	
 	$("#ccs").click(function(){
 		var ind = $("#ccs_indirizzo").val();
 		console.log(ind);
@@ -164,8 +190,17 @@
 				$("#sl").remove();
 				$("#selezionaluogo").append("<ul id=\"sl\"></ul>")
 				for (var i = 0; i < d.results.length; i++) {
-					$("#sl").append("<li>"+d.results[i].name+"<button>Seleziona</button> </li>");
+					$("#sl").append("<li>"+d.results[i].name+"<div style=\"display:none\">"+d.results[i].geometry.location.lat+"</div><span style=\"display:none\">"+d.results[i].geometry.location.lng+"</span><button>Seleziona</button></li>");
 				}
+				$("#sl button").click(function(){
+					var t = $(this).parent().find("div").text().replace("Seleziona","");
+					console.log(t);
+					$("#lat").val(t);
+					t = $(this).parent().find("span").text().replace("Seleziona","");
+					console.log(t);
+					$("#lng").val(t);
+				})
+
 			}
 		})
 	})
@@ -179,12 +214,32 @@
 				$("#mose").remove();
 				$("#mostraeventi").append("<ul id=\"mose\"></ul>")
 				for (var i = 0; i < d.ev.length; i++) {
-					$("#mose").append("<li>"+d.ev[i]._id+"</li>");
+					$("#mose").append("<li class=\"cl\">"+d.ev[i]._id+"</li>");
 				}
+				$(".cl").click(function(){
+                    var m=$(this);
+    				$.get("http://localhost:3000/dammievento?ev="+$(this).html(),function(data,status){
+					console.log(status);
+					if(status == "success"){
+					var d = JSON.parse(data);
+					console.log(d);
+					var squadraA="";
+					var squadraB="";
+					for (var i = 0; i < d.squadra_A.length; i++) {
+					squadraA+=d.squadra_A[i].email +"\n";
+					};
+					console.log(squadraA);
+					for (var i = 0; i < d.squadra_B.length; i++) {
+					squadraB+=d.squadra_B[i].email+="\n";
+					};
+					console.log(squadraB);
+				    m.append("<p><table><tr><td>Nome: <td>"+d._id+"</tr><tr><td> Data: <td>"+d.data+"</tr><tr><td> Coordinate: <td>"+d.geo.coordinates[0]+" // "+d.geo.coordinates[1]+ "</tr><tr><td> Squadra A: <td>"+squadraA+"</tr><tr><td> Squadra B: <td>"+squadraB+"</tr></table></p>");
 			}
 		})
 	})
-
+			}
+		})
+	})
 
 	$("#search").click(function(){
 		var giorno = $("#giorno_s").val();
@@ -205,6 +260,14 @@
 		})
 	})
 
+	$("#crea_ev").submit(function(e){
+		if($("#lat").val() == "" || $("#lng").val() == ""){
+			alert("Scegliere un campetto da calcio");
+			 e.preventDefault();
+                return false;
+		}
+		return true;
+	})
 </script>
 </body>
 </html>
