@@ -10,9 +10,12 @@ var express     		= require("express"),
     fbConfig 			= require('./fb.js'),
     request      		= require('request'),
     FormData 			= require('form-data'),
-	FacebookStrategy 	= require('passport-facebook').Strategy;
-	GoogleStrategy 		= require('passport-google-oauth20').Strategy;
-  amqp              = require('amqplib/callback_api');
+	  FacebookStrategy 	= require('passport-facebook').Strategy,
+	  GoogleStrategy 		= require('passport-google-oauth20').Strategy,
+    amqp              = require('amqplib/callback_api'),
+    WebSocket = require('ws'),
+    CircularJSON = require('circular-json'),
+    http = require('http');
   
 
 /**
@@ -58,6 +61,7 @@ passport.use('facebook', new FacebookStrategy({
 
           // if the user is found, then log them in
           if (user) {
+            user.online = true;
             return done(null, user); // user found, return that user
           } else {
             // if there is no user found with that facebook id, create them
@@ -75,6 +79,7 @@ passport.use('facebook', new FacebookStrategy({
             newUser.somma_valutazione=0;
             newUser.eventi=[];
             newUser.google_ac_token="";
+            newUser.online=true;
 
             // save our user to the database
             newUser.save(function(err) {
@@ -148,8 +153,8 @@ app.post("/addc",isLoggedIn,function(req,res){
 			var nome_e=foundE._id;
 			var data_e=foundE.data;
 			data_e.setHours(foundE.ora);
-			var lat_e = foundE.geo.coordinates[0];
-			var lng_e = foundE.geo.coordinates[1];
+			var lat_e = foundE.geo.coordinates[1];
+			var lng_e = foundE.geo.coordinates[0];
 			request('https://maps.googleapis.com/maps/api/geocode/json?latlng='+lat_e+','+lng_e+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
 		    function (error, response, body){
 		    	if (!error && response.statusCode == 200) {
@@ -197,8 +202,9 @@ app.post("/addc",isLoggedIn,function(req,res){
 })
 
 //ROUTE PER LA CREAZIONE DI UN EVENTO
-app.post("/CreaEvento", function(req, res){
+app.post("/CreaEvento",isLoggedIn,function(req, res){
 	var nomeevento = req.body.nomeevento; 
+  var campetto_ = req.body.campetto;
 	var ora = Number(req.body.ora);
 	var data_ = new Date(Number(req.body.anno),Number(req.body.mese)-1,Number(req.body.giorno));
 	console.log(data_);
@@ -217,7 +223,8 @@ app.post("/CreaEvento", function(req, res){
         partecipanti_att: 1,
         squadra_A: [req.user],
         squadra_B: [],
-        creatore: req.user
+        creatore: req.user,
+        campetto:campetto_
       }
 
       Evento.create(object, function(err,foundE){
@@ -268,7 +275,7 @@ app.post("/CreaEvento", function(req, res){
 })
 
 //elimina evento
-app.post("/cancellaEvento",function(req,res){
+app.post("/cancellaEvento",isLoggedIn,function(req,res){
   Evento.findById(req.body.eventoc).populate("creatore").populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
     if(err){
        res.status(500).send(err)
@@ -336,8 +343,8 @@ app.post("/cancellaEvento",function(req,res){
 
 
 //ROUTE PER LA SELEZIONE DI UN LUOGO, DATO UN INDIRIZZO DI RIFERIMENTO
-app.get("/selezionaluogo",function(req,res){
-  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+app.get("/selezionaluogo",isLoggedIn,function(req,res){
+  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'+'+req.query.citta+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
     function (error, response, body){
     if (!error && response.statusCode == 200) {
     var info = JSON.parse(body);
@@ -464,7 +471,7 @@ app.get("/search",isLoggedIn,function(req,res){
 	var indirizzo = req.query.indirizzo;
 	var data_ = new Date(anno,mese-1,giorno);
 
-  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
+  request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'+'+req.query.citta+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
     function (error, response, body){
     if (!error && response.statusCode == 200) {
 
@@ -527,6 +534,8 @@ app.get("/chisono",isLoggedIn,function(req,res){
    
 
 })
+
+
 app.put("/MiAggiungo", isLoggedIn, function(req, res){
   Evento.findById(req.body.evento).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
       if(err){
@@ -815,9 +824,79 @@ app.get('/connect/google/callback',
 AVVIO DEL SERVER
 ================
 **/
-var server = app.listen(3000, function () {
-  var host = server.address().address;
-  var port = server.address().port;
 
-  console.log('Example app listening at http://%s:%s', host, port);
+var server = http.createServer(app);
+
+/**
+Il sistema di chat lo implemento tenendo un array in cui mantengo degli oggetti che contengono l'email di chi ha aperto la
+web socket e la web socket aperta per scrivere a un secondo utente. connections è l'array che mantiene questi oggetti.
+Quando un utente apre una web socket con il server nella uri specifica anche la sua email che preleva sempre dal server
+e in questo modo sono in grado di identificare le connessioni con le persone.
+per implementare il sistema di messaggistica si utilizza un semplice protocollo in cui i messaggi scambiati sono degli oggetti JSON
+così fatti:
+msg = {
+  src:String,
+  dest:String
+  msg:String
+}
+Dove src e dest sono le email dell'utente che invia il messaggio e di quello che lo riceve. Il server prende dest e vede se è presente 
+in connections. In caso positivo inoltra direttamente il messaggio sulla web socket trovata di dest, altrimenti notifica src che l'utente
+da lui richiesto non è online o non esiste.
+Suppongo che si possa comunicare con una persona alla volta e quindi quando un utente è già attivo in una chat, se riceve un messaggio da 
+una persona differente da quella attuale, in automatico alla nuova sorgente manda un messaggio in uci lo avvisa che è impegnato in una
+comunicazione e che dovrà riprovare in seguito il contatto.
+Infine esiste un messaggio speciale "LEFT_@#" che serve per segnalare l'uscita di un utente da una chat e renderlo così disponibile ad 
+altri utenti
+**/
+
+var connections = [];
+
+var wss = new WebSocket.Server({server});
+wss.on('connection', function connection(ws,req) {
+  var prova = ws;
+  //in questo modo riesco a estrapolare il parametro nella url
+  console.log(req.url.slice(req.url.search("=")+1));
+  var e = req.url.slice(req.url.search("=")+1);               // con queste righe mi sto tirando fuori l'email dall'uri della richiesta della web socket
+  var o = {
+    email:e,
+    web_s:ws
+  }
+  connections.push(o);
+
+  ws.on('message', function incoming(message) {
+    var obj = JSON.parse(message);
+    //se ho fatto refresh della pagina devo eliminare la ws precedente che non è open altrimenti mi da problemi perchè
+    //la prima che trova find al passo successivo è quella non open e non posso mandare messaggi
+    var trovato = connections.find(function(em){
+      return em.email == obj.dest && !(em.web_s.readyState === WebSocket.OPEN);
+    })
+    if(trovato != undefined){
+      connections.splice(connections.indexOf(trovato),1);
+    }
+    trovato = connections.find(function(em){
+      return em.email == obj.dest && em.web_s.readyState === WebSocket.OPEN;
+    })
+    if(trovato == undefined){
+      var nf={
+        src:"server",
+        dest:"",
+        message:"Utente non online"
+      }
+      ws.send(JSON.stringify(nf));
+    } 
+    else{
+      trovato.web_s.send(message,function(err){
+        if(err) console.log(err);
+      });
+    }
+  });
+});
+
+
+
+
+
+
+server.listen(3000, function listening() {
+  console.log('Listening on %d', server.address().port);
 });

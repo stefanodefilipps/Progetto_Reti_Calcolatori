@@ -17,7 +17,8 @@
 	<form action="" method="">
 		<table border = "1">
 		<td align="right">Luogo:
-		<td><input id="ccs_indirizzo" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo"><tr>
+		<td><input id="ccs_indirizzo" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Indirizzo"></td>
+		<td><input id="ccs_citta" type="text" name="indirizzo" size="40" maxlength="40" placeholder="Inserisci Città"></td></td>
 		</table>
 	</form>
 	<button id="ccs">Cerca Centri Sportivi</button>
@@ -40,6 +41,8 @@
 		<td><input id = "lng" type="text" name="lng" size="30" maxlenght="30" placeholder="Inserisci indirizzo" readonly="true"></td></tr>
 		<tr style="display:none"><td align="right">lat:</td>
 		<td><input id = "lat" type="text" name="lat" size="30" maxlenght="30" placeholder="Inserisci indirizzo" readonly="true"></td></tr>
+		<tr style="display:none"><td align="right">campetto:</td>
+		<td><input id = "campetto" type="text" name="campetto" size="30" maxlenght="30" placeholder="Inserisci campetto" readonly="true"></td></tr>
 		<td><input type="submit" value="Crea Evento"></td>
 		</table>
 	</form>
@@ -67,6 +70,8 @@
 		<td><input type="text" id = "anno_s" name="anno" placeholder="Inserisci anno"></td>
 		<td align = "right"> Indirizzo:</td>
 		<td><input type="text" id = "indirizzo_s" name="indirizzo" placeholder="Inserisci Indirizzo"></td>
+		<td align = "right"> Città:</td>
+		<td><input type="text" id = "citta_s" name="indirizzo" placeholder="Inserisci Città"></td>
 	</table>
 	</form>
 	<button id = "search">Mostra Eventi Con Le Caratteristiche Specificate</button>
@@ -129,6 +134,32 @@
 	</form>
 
 
+	<h1> Chat </h1>
+
+	<table border = "1">
+		<tr>
+			<td>
+				<textarea id = "person_chat" name="person_chat" placeholder="inserisci nome di persona da contattare" rows="2" cols="50"></textarea>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<textarea id="body_chat" name="body_chat" readonly="true" rows="30" cols="50"></textarea>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<textarea id="new_message"  name="new_message" rows="4" cols="50"></textarea>
+			</td>
+		</tr>
+		<tr>
+			<button id = "chat">invia</button>
+			<button id = "leave">Abbandona la chat</button>
+		</tr>
+	</table>
+
+
+
 	<h1> Esci </h1>
 	<form action="http://localhost:3000/logout" method="GET">
 		<table border = "1">
@@ -143,14 +174,12 @@
 	</table>
 	</form>
 
-
-
-
-
 	
 	<script type="text/javascript">
 	
-
+	var chat = null;
+	var em = "";
+	var source = "";
 
 	function start(){
 		$.get("http://localhost:3000/chisono",function(data,status){
@@ -175,15 +204,64 @@
      
        client.connect('guest', 'guest', on_connect, on_error, '/');
 				
-				};
-			});
-		};
+	};
+	});
+		 
+		$.get("http://localhost:3000/chisono",function(data,status){
+			if(status == "success"){
+				//creo una nuova connessione nel server su una websocket passando la mia email appena recuperata
+				em=data;
+				chat = new WebSocket("ws://localhost:3000?email="+data); 
+				chat.onmessage = function (evt){
+					var m = JSON.parse(evt.data);
+					if(source != "" && m.src != "server" && m.src != source){
+						// sono impegnato in una conversazione e qualcuno tenta di scrivermi ma non posso rispondergli
+						var reply = {
+							src:em,
+							dest:m.src,
+							message:"Sono occupato, prova dopo"
+						}
+						chat.send(JSON.stringify(reply));
+						return;
+					}
+					if(m.src == "server"){
+						alert(m.message);
+						$("#body_chat").val("");
+						$("#new_message").val("");
+						$("#person_chat").val("");
+						source = "";
+					}
+					else{
+						if(source == ""){
+							source = m.src;
+							$("#person_chat").val(source);
+						} 
+						if(m.message == "LEFT_@#"){
+							alert(source+" ha abbandonato la chat");
+							source = "";
+							$("#body_chat").val("");
+							$("#new_message").val("");
+							$("#person_chat").val("");
+							return;
+						}
+						var t = $("#body_chat").val();
+						$("#body_chat").val(t+"\n\n"+m.src+": "+m.message);
+					}
+				}
+		 		window.onbeforeunload = function(event) {
+                  	chat.close();
+                };
+			}
+			else return;
+		})
+
+	}
         
 	
 	$("#ccs").click(function(){
 		var ind = $("#ccs_indirizzo").val();
 		console.log(ind);
-		$.get("http://localhost:3000/selezionaluogo?indirizzo="+ind,function(data,status){
+		$.get("http://localhost:3000/selezionaluogo?indirizzo="+ind+"&citta="+$("#ccs_citta").val(),function(data,status){
 			console.log(status);
 			if(status == "success"){
 				var d = JSON.parse(data);
@@ -191,15 +269,16 @@
 				$("#sl").remove();
 				$("#selezionaluogo").append("<ul id=\"sl\"></ul>")
 				for (var i = 0; i < d.results.length; i++) {
-					$("#sl").append("<li>"+d.results[i].name+"<div style=\"display:none\">"+d.results[i].geometry.location.lat+"</div><span style=\"display:none\">"+d.results[i].geometry.location.lng+"</span><button>Seleziona</button></li>");
+					$("#sl").append("<li><span>"+d.results[i].name+"</span><div style=\"display:none\">"+d.results[i].geometry.location.lat+"</div><span style=\"display:none\">"+d.results[i].geometry.location.lng+"</span><button>Seleziona</button></li>");
 				}
 				$("#sl button").click(function(){
 					var t = $(this).parent().find("div").text().replace("Seleziona","");
 					console.log(t);
 					$("#lat").val(t);
-					t = $(this).parent().find("span").text().replace("Seleziona","");
+					t = $(this).parent().find("span").last().text().replace("Seleziona","");
 					console.log(t);
 					$("#lng").val(t);
+					$("#campetto").val($(this).parent().find("span").first().text().replace("Seleziona",""))
 				})
 
 			}
@@ -234,7 +313,7 @@
 					squadraB+=d.squadra_B[i].email+="\n";
 					};
 					console.log(squadraB);
-				    m.append("<p><table><tr><td>Nome: <td>"+d._id+"</tr><tr><td> Data: <td>"+d.data+"</tr><tr><td> Coordinate: <td>"+d.geo.coordinates[0]+" // "+d.geo.coordinates[1]+ "</tr><tr><td> Squadra A: <td>"+squadraA+"</tr><tr><td> Squadra B: <td>"+squadraB+"</tr></table></p>");
+				    m.append("<p><table><tr><td>Nome: <td>"+d._id+"</tr><tr><td> Data: <td>"+d.data+"</tr><tr><td> Campetto: <td>"+d.campetto+"</tr><tr><td> Coordinate: <td>"+d.geo.coordinates[0]+" // "+d.geo.coordinates[1]+ "</tr><tr><td> Squadra A: <td>"+squadraA+"</tr><tr><td> Squadra B: <td>"+squadraB+"</tr></table></p>");
 			}
 		})
 	})
@@ -247,7 +326,7 @@
 		var mese = $("#mese_s").val();
 		var anno = $("#anno_s").val();
 		var indirizzo = $("#indirizzo_s").val();
-		$.get("http://localhost:3000/search?giorno="+giorno+"&mese="+mese+"&anno="+anno+"&indirizzo="+indirizzo,function(data,status){
+		$.get("http://localhost:3000/search?giorno="+giorno+"&mese="+mese+"&anno="+anno+"&indirizzo="+indirizzo+"&citta="+$("#citta_s").val(),function(data,status){
 			console.log(status);
 			if(status == "success"){
 				var d = JSON.parse(data);
@@ -268,6 +347,36 @@
                 return false;
 		}
 		return true;
+	})
+
+	$("#chat").click(function(e){
+		if($("#person_chat").val() != "" && source!="" && source != $("#person_chat").val() ){
+			alert("stai gia parlando con qualcuno, chiudi la conversazione per iniziarne un'altra");
+			return;
+		}
+		if($("#person_chat").val()!= "") source = $("#person_chat").val();
+		var msg = {
+			src:em,
+			dest: source,
+			message:$("#new_message").val()
+		}
+		var t = $("#body_chat").val();
+		$("#body_chat").val(t+"\n\n"+em+": "+$("#new_message").val());
+		$("#new_message").val("");
+		chat.send(JSON.stringify(msg));
+	})
+
+	$("#leave").click(function(e){
+		var msg = {
+			src:em,
+			dest: source,
+			message:"LEFT_@#"
+		}
+		chat.send(JSON.stringify(msg));
+		source = "";
+		$("#body_chat").val("");
+		$("#new_message").val("");
+		$("#person_chat").val("");
 	})
 </script>
 </body>

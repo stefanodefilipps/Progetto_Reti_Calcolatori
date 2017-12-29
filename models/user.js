@@ -13,7 +13,7 @@ var userSchema = new mongoose.Schema({
 	eventi: [{
 		type: mongoose.Schema.Types.ObjectId,
        	ref: "Evento"
-	}]
+	}],
 });
 
 module.exports = mongoose.model("User", userSchema);

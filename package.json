@@ -11,6 +11,7 @@
   "dependencies": {
     "amqplib": "^0.5.2",
     "body-parser": "^1.18.2",
+    "circular-json": "^0.5.1",
     "ejs": "^2.5.7",
     "express": "^4.16.2",
     "express-session": "^1.15.6",
@@ -22,6 +23,7 @@
     "passport-facebook": "^2.1.1",
     "passport-google-oauth20": "^1.0.0",
     "passport-local": "^1.0.0",
-    "request-promised": "^1.0.2"
+    "request-promised": "^1.0.2",
+    "ws": "^3.3.3"
   }
 }

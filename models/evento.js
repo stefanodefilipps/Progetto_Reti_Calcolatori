@@ -4,6 +4,7 @@ var eventoSchema = new mongoose.Schema({
     _id: String,
     data: Date,
     ora: Number,
+    campetto:String,
     geo: {
     	type: {type: String, default:'Point'},
     	coordinates: [Number]
