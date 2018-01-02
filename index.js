@@ -202,7 +202,7 @@ app.post("/addc",isLoggedIn,function(req,res){
 })
 
 //ROUTE PER LA CREAZIONE DI UN EVENTO
-app.post("/CreaEvento",isLoggedIn,function(req, res){
+app.post("/Eventi",isLoggedIn,function(req, res){
 	var nomeevento = req.body.nomeevento; 
   var campetto_ = req.body.campetto;
 	var ora = Number(req.body.ora);
@@ -275,30 +275,25 @@ app.post("/CreaEvento",isLoggedIn,function(req, res){
 })
 
 //elimina evento
-app.post("/cancellaEvento",isLoggedIn,function(req,res){
-  Evento.findById(req.body.eventoc).populate("creatore").populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
+app.delete("/Eventi/:id",isLoggedIn,function(req,res){
+  Evento.findByIdAndRemove(req.params.id).populate("creatore").populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
     if(err){
        res.status(500).send(err)
     }
      if (foundE) {
             console.log(foundE);
             if(foundE.creatore.equals(req.user._id)){
-              User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
-                  foundU.eventi.pop(foundE);
-                  foundU.save(function(err){
-                  if(err){
-                  console.log(err);
-                  res.redirect("/");
-                 }
-                 });
-              });
               foundE.squadra_A.forEach(function(e){
+                console.log("=========================sono in squadra A========================");
+                console.log(e);
+                console.log("=========================FINE========================");
                 User.findById(e._id).populate("eventi").exec(function(err,foundU){
-                  foundU.eventi.pop(foundE);
+                  foundU.eventi.pull(foundE);
                     foundU.save(function(err){
                     if(err){
                     console.log(err);
                     res.redirect("/");
+                    return;
                     }
                     });
                 });
@@ -306,11 +301,12 @@ app.post("/cancellaEvento",isLoggedIn,function(req,res){
                 
               foundE.squadra_B.forEach(function(e){
                User.findById(e._id).populate("eventi").exec(function(err,foundU){
-                  foundU.eventi.pop(foundE);
+                  foundU.eventi.pull(foundE);
                     foundU.save(function(err){
                     if(err){
                     console.log(err);
                     res.redirect("/");
+                    return;
                     }
                     });
                 });
@@ -319,6 +315,7 @@ app.post("/cancellaEvento",isLoggedIn,function(req,res){
               conn.createChannel(function(err, ch) {
               if(err){
                   console.log("errore nella creazione canale");
+                  return;
               }
                   ch.assertExchange(foundE._id, 'fanout', {durable: false});
                   ch.publish(foundE._id, '', new Buffer("***ATTENZIONE*** L'evento "+foundE._id+" è stato cancellato"));
@@ -326,12 +323,10 @@ app.post("/cancellaEvento",isLoggedIn,function(req,res){
               });
                   setTimeout(function() { conn.close();  }, 500);
               });
-              Evento.findByIdAndRemove(foundE._id, function(err, evento){  
-              if(err) res.status(404).send("non hai i permessi");
-              });
               
             }
             else res.status(404).send("non hai i permessi");
+            res.status(200).send("ELIMINATO");
             
         } else {
         res.status(404).send("No event found with that ID");
@@ -343,7 +338,7 @@ app.post("/cancellaEvento",isLoggedIn,function(req,res){
 
 
 //ROUTE PER LA SELEZIONE DI UN LUOGO, DATO UN INDIRIZZO DI RIFERIMENTO
-app.get("/selezionaluogo",isLoggedIn,function(req,res){
+app.get("/field",isLoggedIn,function(req,res){
   request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'+'+req.query.citta+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
     function (error, response, body){
     if (!error && response.statusCode == 200) {
@@ -366,10 +361,10 @@ app.get("/selezionaluogo",isLoggedIn,function(req,res){
 
 
 //ROUTE PER IL RILASCIO DI UN FEEDBACK
-app.put("/feedback", isLoggedIn, function(req, res){
+app.put("/Users/:email/feedback", isLoggedIn, function(req, res){
 
 	var evento = req.body.eventoterminato;
-	var emailrecensito = req.body.emailrecensito;
+	var emailrecensito = req.params.email;
 	var feed = Number(req.body.valore);
 
 
@@ -404,7 +399,7 @@ app.put("/feedback", isLoggedIn, function(req, res){
 
     	if(!trovato){
     		console.log("Utente da recensire non è presente in questo evento");
-    		res.redirect("/");
+    		res.status(500).send("Utente da recensire non è presente in questo evento");
     		return;
     	}
 
@@ -417,7 +412,7 @@ app.put("/feedback", isLoggedIn, function(req, res){
     		}
     		if(!trovatoRichiedente){
 			console.log("Utente che richiede non ha partecipato all'evento");
-    		res.redirect("/");
+    		res.status(500).send("Non partecipi all'evento specificato");
     		return;
     	}
 
@@ -444,11 +439,11 @@ app.put("/feedback", isLoggedIn, function(req, res){
     		User.findByIdAndUpdate(found._id, object, function(err, modificati){
     			if(err){
     				console.log(err);
-    				res.redirect("/");
+    				res.status(400).send(err);
     			}
     			else{
     				console.log(modificati);
-    				res.redirect("/");
+    				res.status(200).send(modificati);
     			}
     		}) 
     		
@@ -505,13 +500,11 @@ app.get("/search",isLoggedIn,function(req,res){
 })
 
 
-
-
-//ROUTE PER L'AGGIUNTA DELL'UTENTE AD UN EVENTO SPECIFICATOz
-app.get("/dammievento",isLoggedIn,function(req,res){
-  Evento.findById(req.query.ev).populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
-
-      res.send(JSON.stringify(foundE));
+//ROUTE PER MOSTRARE UN EVENTO PARTICOLARE ASSOCIATO A UN UTENTE
+app.get("/Eventi/:id",isLoggedIn,function(req,res){
+  Evento.findById(req.params.id).populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
+    if(err) res.status(404).send(JSON.stringify(err));
+    else res.send(JSON.stringify(foundE));
   });
 });
 
@@ -535,12 +528,14 @@ app.get("/chisono",isLoggedIn,function(req,res){
 
 })
 
+//ROUTE PER L'AGGIUNTA DELL'UTENTE AD UN EVENTO SPECIFICATO
 
-app.put("/MiAggiungo", isLoggedIn, function(req, res){
-  Evento.findById(req.body.evento).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
+app.put("/Eventi/:id", isLoggedIn, function(req, res){
+  console.log("==============="+req.body.Squadra+"================");
+  Evento.findById(req.params.id).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
       if(err){
       console.log(err);
-      res.redirect("/");
+      res.status(404).send(JSON.stringify(err));
       return;
     }
     console.log("Stai richiedendo di aggiungerti");
@@ -573,6 +568,7 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
         Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: foundE.partecipanti_att+1}}, function(err, modificati){
             	if(err){
             		console.log(err);
+                res.status(404).send(JSON.stringify(err));
             	}
             	else{
             		console.log(modificati);
@@ -580,7 +576,7 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
             })
       }
       else{
-      res.send("Non Aggiunto");
+      res.status(400).send("Non Aggiunto");
       return;
       }
         
@@ -620,7 +616,7 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
             })
             }
               else{
-               res.send("Non Aggiunto");
+               res.status(400).send("Non Aggiunto");
                return;
               }
 
@@ -628,14 +624,14 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
         User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
     		if(err){
      			 console.log(err);
-      			 res.redirect("/");
+      			 res.status(404).send(JSON.stringify(err));
       			 return;
     		}
     	foundU.eventi.push(foundE);
     	foundU.save(function(err){
       		if(err){
         	console.log(err);
-        	res.redirect("/");
+        	res.status(404).redirect(JSON.stringify(err));
       }
 
 	})
@@ -646,8 +642,12 @@ app.put("/MiAggiungo", isLoggedIn, function(req, res){
 
 
 //ROUTE PER MOSTRARE TUTTI GLI EVENTI ASSOCIATI A UN UTENTE (RESTITUISCO SOLO I NOMI DEGLI EVENTI)
-app.get("/eventi",isLoggedIn,function(req,res){
+app.get("/Eventi",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi","_id").exec(function(err,foundU){
+    if(err){
+      res.status(404).send(JSON.stringify(err));
+      return;
+    }
     var risposta = {ev:[]};
     var finito;
     foundU.eventi.forEach(function(e){
@@ -662,7 +662,7 @@ app.get("/eventi",isLoggedIn,function(req,res){
 
 
 //ROUTE PER DISSOCIARE UN UTENTE DA UN EVENTO A CUI PARTECIPA
-app.put("/abbandona",isLoggedIn,function(req,res){
+app.put("/Eventi/:id/leave",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
     if(err){
       console.log(err);
@@ -670,16 +670,16 @@ app.put("/abbandona",isLoggedIn,function(req,res){
       return;
     }
     console.log("stai abbandonando");
-    var contenuto = foundU.eventi.find(function(id_ev){
-      return id_ev._id == req.body.evento;
+    var contenuto_1 = foundU.eventi.find(function(id_ev){
+      return id_ev._id == req.params.id;
     });
-    if(contenuto == undefined){
+    if(contenuto_1 == undefined){
       console.log("utente non contiene questo elemento");
       res.send("Non hai questo elem");
       return;
     }
-    console.log(contenuto);
-        Evento.findById(req.body.evento).populate("squadra_"+req.body.squadra).exec(function(err,foundE){
+    console.log(contenuto_1);
+        Evento.findById(req.params.id).populate("squadra_"+req.body.squadra).exec(function(err,foundE){
           if(err){
             console.log(err);
             res.redirect("/");
@@ -722,31 +722,34 @@ app.put("/abbandona",isLoggedIn,function(req,res){
               res.send("Non sei in questa squadra");
               return;
             }
+            console.log("============================");
+            console.log(contenuto);
+            console.log("============================");
             if(req.body.squadra == "A"){
-            	foundE.squadra_A.pop(contenuto);
+            	foundE.squadra_A.pull(foundU);
 	            foundE.save(function(err){
 	              if(err){
 	                console.log(err);
-	                res.redirect("/");
+	                res.status(404).send(JSON.stringify(err));
 	              }
 	              else{
-	                res.redirect("/");
+	                res.send("Eliminato");
 	              }
 	            })
       		}
       		else{
-      			foundE.squadra_A.pop(contenuto);
+      			foundE.squadra_B.pull(foundU);
 	            foundE.save(function(err){
 	              if(err){
 	                console.log(err);
-	                res.redirect("/");
+	                res.status(404).send(JSON.stringify(err));
 	              }
 	              else{
-	                res.redirect("/");
+	                res.send("Eliminato");
 	              }
 	            })
       		}
-      		foundU.eventi.pop(contenuto);
+      		foundU.eventi.pull(foundE);
     		foundU.save(function(err){
     			if(err) console.log(err);
     			foundE.partecipanti_att=foundE.partecipanti_att-1;

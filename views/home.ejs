@@ -25,7 +25,7 @@
 	<div id="selezionaluogo"></div>
 
 	<h3><li> Compila i campi della form per creare l'evento </h3></li>
-	<form id="crea_ev" action="http://localhost:3000/CreaEvento" method="POST">
+	<form id="crea_ev" action="http://localhost:3000/Eventi" method="POST">
 		<table border = "1">
 		<tr><td align="right">Nome:</td>
 		<td><input type="text" name="nomeevento" size="30" maxlenght="30" placeholder="Nome Evento"></td>
@@ -84,54 +84,54 @@
 
 
 	<h1> Partecipa </h1>
-	<form action="http://localhost:3000/MiAggiungo?_method=PUT" method="POST">
+	<form action="" method="">
 		<table border = "1">
 		<td align="right">Nome Evento:
-		<td><input type="text" name="evento" size="20" maxlength="20" placeholder="Inserisci Nome Evento">
-		<label><input type="radio" name="Squadra" value="A"/>SquadraA</label>
-		<label><input type="radio" name="Squadra" value="B"/>SquadraB</label>
-		<input type="submit" value="Aggiungimi ad evento"></td>
+		<td><input type="text" id="evento_p" size="20" maxlength="20" placeholder="Inserisci Nome Evento">
+		<label><input type="radio" id="Squadra_A" value="A"/>SquadraA</label>
+		<label><input type="radio" id="Squadra_B" value="B"/>SquadraB</label>
 		</td>
 		</table>
 	</form>
+	<button id = "partecipa_ev">Aggiungimi ad evento</button>
 
 
 
 	<h1> Abbandona </h1>
-	<form method="POST" action="http://localhost:3000/abbandona?_method=PUT">
+	<form method="" action="">
 		<table border = "1">
 		<td align = "right"> Evento:</td>
-		<td><input type="text" name="evento" placeholder="Evento da abbandonare"></td>
+		<td><input type="text" id="evento_abb" placeholder="Evento da abbandonare"></td>
 		<td align = "right"> Squadra:</td>
-		<td><input type="text" name="squadra" placeholder="Squadra da abbandonare"></td>
-		<td><input type="submit" value="Abbandona"></td>
+		<td><input type="text" id="squadra_abb" placeholder="Squadra da abbandonare"></td>
 		</table>
 	</form>
+	<button id = "abbandona">Abbandona</button>
 
 
 	<h1> Elimina Evento </h1>
-	<form action="http://localhost:3000/cancellaEvento" method="POST">
+	<form action="" method="">
 		<table border = "1">
 		<td align = "right"> Evento:</td>
-		<td><input type="text" name="eventoc" placeholder="Inserisci evento da eliminare"></td>
-		<td><input type="submit" value="Elimina Evento"></td>
+		<td><input type="text" id="eventoc" placeholder="Inserisci evento da eliminare"></td>
 		</table>
 	</form>
+	<button id="elimina_ev">elimina evento</button>
 
 
 
 	<h1> Rilascia recensione </h1>
-	<form action="http://localhost:3000/feedback?_method=PUT" method="POST">
+	<form action="" method="">
 		<table border = "1">
 		<td align="right">Evento Giocato:
-		<td><input type="text" name="eventoterminato" size="30" maxlenght="30" placeholder="Nome Evento Giocato">
+		<td><input type="text" id="eventoterminato" size="30" maxlenght="30" placeholder="Nome Evento Giocato">
 		<td align="right">Nome Utente:
-		<td><input type="text" name="emailrecensito" size="30" maxlenght="30" placeholder="Email Utente Da Recensire">
-		<td><input type="text" name="valore" size="15" maxlength="1" placeholder="Inserisci Valore 0-9">
-		<input type="submit" value="Rilascia feedback"></td>
+		<td><input type="text" id="emailrecensito" size="30" maxlenght="30" placeholder="Email Utente Da Recensire">
+		<td><input type="text" id="valore" size="15" maxlength="1" placeholder="Inserisci Valore 0-9">
 		</td>
 		</table>
 	</form>
+	<button id = "rilascia_f">Rilascia feedback</button>
 
 
 	<h1> Chat </h1>
@@ -261,7 +261,7 @@
 	$("#ccs").click(function(){
 		var ind = $("#ccs_indirizzo").val();
 		console.log(ind);
-		$.get("http://localhost:3000/selezionaluogo?indirizzo="+ind+"&citta="+$("#ccs_citta").val(),function(data,status){
+		$.get("http://localhost:3000/field?indirizzo="+ind+"&citta="+$("#ccs_citta").val(),function(data,status){
 			console.log(status);
 			if(status == "success"){
 				var d = JSON.parse(data);
@@ -286,7 +286,7 @@
 	})
 
 	$("#me").click(function(){
-		$.get("http://localhost:3000/eventi",function(data,status){
+		$.get("http://localhost:3000/Eventi",function(data,status){
 			console.log(status);
 			if(status == "success"){
 				var d = JSON.parse(data);
@@ -298,7 +298,7 @@
 				}
 				$(".cl").click(function(){
                     var m=$(this);
-    				$.get("http://localhost:3000/dammievento?ev="+$(this).html(),function(data,status){
+    				$.get("http://localhost:3000/Eventi/"+$(this).html(),function(data,status){
 					console.log(status);
 					if(status == "success"){
 					var d = JSON.parse(data);
@@ -377,6 +377,44 @@
 		$("#body_chat").val("");
 		$("#new_message").val("");
 		$("#person_chat").val("");
+	})
+
+	$("#elimina_ev").click(function(e){
+		$.post("http://localhost:3000/Eventi/"+$("#eventoc").val()+"?_method=DELETE",function(data,status){
+			if(status == "success"){
+				alert(data);
+			}
+			else alert(status);
+		})
+	})
+
+	$("#rilascia_f").click(function(e){
+		$.post("http://localhost:3000/Users/"+$("#emailrecensito").val()+"/feedback?_method=PUT",{eventoterminato:$("#eventoterminato").val(),valore:$("#valore").val()},function(data,status){
+			if(status == "success"){
+				alert(data);
+			}
+			else alert(status+"\n"+data);
+		})
+	})
+
+	$("#partecipa_ev").click(function(e){
+		var Squadra=$(":checked").val();
+		console.log(Squadra);
+		if($("#squadra_A").is(':checked')) Squadra = "A";
+		else if($("#squadra_B").is(':checked')) Squadra = "B";
+		$.post("http://localhost:3000/Eventi/"+$("#evento_p").val()+"?_method=PUT",{Squadra:Squadra},function(data,status){
+			if(status == "success"){
+				alert(data);
+			}
+			else alert(status+"\n"+data);
+		})
+	})
+
+	$("#abbandona").click(function(e){
+		$.post("http://localhost:3000/Eventi/"+$("#evento_abb").val()+"/leave?_method=PUT",{squadra:$("#squadra_abb").val()},function(data, status){
+			if(status == "success") alert(data);
+			else alert(data);
+		})
 	})
 </script>
 </body>
