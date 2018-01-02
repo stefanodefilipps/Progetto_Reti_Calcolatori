@@ -143,13 +143,25 @@ app.get("/",function(req,res){
 
 
 //ROUTE PER GESTIRE GLI EVENTI DEL CALENDARIO DOPO AVER OTTENUTO AUTORIZZAZIONE DI GOOGLE
+
+/**
+In questa api si permette all'utente di aggiungere un evento al suo calendario principale dopo essersi autenticato con Google e aver
+autorizzato la nostra applicazione a prendere le informazioni sul suo profilo di Google e la scrittura sul suo calendario.
+La funzione controlla che prima esista un evento specificato nel DataBase e solo successivamente aggiunge l'evento corrispondente.
+Viene specificato  nel calendario il nome dell'evento, il giorno, l'ora e il luogo espresso in coordinate geografiche
+**/
+
 app.post("/addc",isLoggedIn,function(req,res){
 	Evento.findById(req.body.evento,function(err,foundE){
 		if(err){
 			console.log(err);
-			res.redirect("/");
+			res.status(404).send(JSON.stringify(err));
 		}
 		else{
+      if(foundE == null){                               //Se foundE è null vuol dire che non è presente nel db e lo notifico al richiedente
+        res.status(404).send("Evento non esistente");
+        return;
+      }
 			var nome_e=foundE._id;
 			var data_e=foundE.data;
 			data_e.setHours(foundE.ora);
@@ -162,8 +174,8 @@ app.post("/addc",isLoggedIn,function(req,res){
 	    		var calendar_event = {
 	    				location:luogo,
 	    				summary: "partecipa all'evento: "+nome_e,
-						end:
-						{
+						end:                                    //data di inizio e di fine dell'evento
+						{                                       //i parametri forniti sono quelli minimi per usufruire del servizio di googlr calendar
 						dateTime:data_e.toISOString()
 						},
 						start:
@@ -186,22 +198,31 @@ app.post("/addc",isLoggedIn,function(req,res){
 		    				console.log("evento creato");
 		    				console.log(body);
 		    				console.log(error);
-		    				res.redirect("/");
+		    				res.status(response.statusCode).send(body);
 		    			}
 		    			else{
 		    				console.log(error);
 		    				console.log(response.statusCode)
 		    				console.log(body);
-		    				res.redirect("/");
+		    				res.status(response.statusCode).send(body);
 		    			}
 		    		})
 		    	}
+          else res.status(response.statusCode).send(body);      // se la richiesta non è andata bene do il risultato al client
 		    })
 		}
 	})
 })
 
 //ROUTE PER LA CREAZIONE DI UN EVENTO
+
+/**
+Con questa funzione si crea un nuovo evento nel db e si devono specificare il nome, il campetto scelto, le sue coordinate e la data dell'evento
+Dopo la creazione dell'evento si aggiunge quest'ultimo anche tra gli eventi dello user e si fa il binding tra la coda dello user corrente e 
+il nuovo exchange creato per questo particolare evento. La coda sarà necessaria per notificare i partecipanti dell'evento quando un utente si 
+aggiunge o si elimina o l'evento stesso viene cancellato dal db.
+**/
+
 app.post("/Eventi",isLoggedIn,function(req, res){
 	var nomeevento = req.body.nomeevento; 
   var campetto_ = req.body.campetto;
@@ -230,17 +251,14 @@ app.post("/Eventi",isLoggedIn,function(req, res){
       Evento.create(object, function(err,foundE){
         if(err){
           console.log(err);
-          res.redirect("/");
+          res.status(500).send(JSON.stringify(err));
         }
         else{
           console.log("Evento creato con successo");
-          res.redirect("/");
-        }
-
-        User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+          User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
             if(err){
                console.log(err);
-                 res.redirect("/");
+                 res.status(500).send(JSON.stringify(err));
                  return;
             }
             foundU.eventi.push(foundE);
@@ -264,21 +282,43 @@ app.post("/Eventi",isLoggedIn,function(req, res){
             foundU.save(function(err){
                 if(err){
                 console.log(err);
-                res.redirect("/");
+                res.status(500).send(JSON.stringify(err));
                 } 
+                else{
+                  res.send("Evento Creato");
+                }
 
           })
 
         })
-
+        }
       })
 })
 
-//elimina evento
+//ROUTE PER ELIMINARE UN EVENTO
+
+/**
+In questa api si permette all'utente di eliminare un evento di cui è il creatore
+Si usa sempre rabbitmq per mandare un messaggio a tutti i partecipanti all'evento che è stato eliminato
+Si prendono tutti i partecipanti dell'evento specificato e a ognuno si leva l'evento in questione dall'array che contiene i loro eventi
+**/
+
 app.delete("/Eventi/:id",isLoggedIn,function(req,res){
-  Evento.findByIdAndRemove(req.params.id).populate("creatore").populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
+  Evento.findById(req.params.id).populate("creatore").exec(function(err,found){
     if(err){
-       res.status(500).send(err)
+      console.log(err);
+      res.status(500).send(JSON.stringify(err));
+      return;
+    }
+    if(found == null){
+      res.status(404).send("Nessun elemento trovato con ID specificato");
+      return;
+    }
+    if(found.creatore.equals(req.user._id)){
+      Evento.findByIdAndRemove(req.params.id).populate("creatore").populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
+    if(err){
+       res.status(500).send(JSON.stringify(err));
+       return;
     }
      if (foundE) {
             console.log(foundE);
@@ -288,11 +328,16 @@ app.delete("/Eventi/:id",isLoggedIn,function(req,res){
                 console.log(e);
                 console.log("=========================FINE========================");
                 User.findById(e._id).populate("eventi").exec(function(err,foundU){
+                  if(err){
+                    console.log(err);
+                    res.status(500).send(JSON.stringify(err));
+                    return;
+                    }
                   foundU.eventi.pull(foundE);
                     foundU.save(function(err){
                     if(err){
                     console.log(err);
-                    res.redirect("/");
+                    res.status(500).send(JSON.stringify(err));
                     return;
                     }
                     });
@@ -301,11 +346,16 @@ app.delete("/Eventi/:id",isLoggedIn,function(req,res){
                 
               foundE.squadra_B.forEach(function(e){
                User.findById(e._id).populate("eventi").exec(function(err,foundU){
+                if(err){
+                    console.log(err);
+                    res.status(500).send(JSON.stringify(err));
+                    return;
+                    }
                   foundU.eventi.pull(foundE);
                     foundU.save(function(err){
                     if(err){
                     console.log(err);
-                    res.redirect("/");
+                    res.status(500).send(JSON.stringify(err));
                     return;
                     }
                     });
@@ -325,19 +375,35 @@ app.delete("/Eventi/:id",isLoggedIn,function(req,res){
               });
               
             }
-            else res.status(404).send("non hai i permessi");
+            else{
+              res.status(404).send("non hai i permessi");
+              return;
+            } 
             res.status(200).send("ELIMINATO");
             
         } else {
         res.status(404).send("No event found with that ID");
     };
   });
+    }
+      else{
+              res.status(404).send("non hai i permessi");
+              return;
+            } 
+  })
 });
 
 
 
 
 //ROUTE PER LA SELEZIONE DI UN LUOGO, DATO UN INDIRIZZO DI RIFERIMENTO
+
+/**
+In questa api si restituisce al client i campetti da calcio nell'arco di 3,5 km della via specificata dal client stesso.
+Prima si usano le api google di geo code per prelevare le coordinate geografiche dell'indirizzo situato nella città specificata e poi 
+si usano quest'ultime per fare una richiesta alle api di nearbysearch per cercare i campetti da calcio nei dintorni delle coordinate appena ricavate
+**/
+
 app.get("/field",isLoggedIn,function(req,res){
   request('https://maps.googleapis.com/maps/api/geocode/json?address='+req.query.indirizzo+'+'+req.query.citta+'&key=AIzaSyAIyWmKzf9p5lVUeeNJ4wKyqbNTF9pX86E',
     function (error, response, body){
@@ -353,14 +419,23 @@ app.get("/field",isLoggedIn,function(req,res){
           JSON.parse(body).results.forEach(function(e){
             console.log(e.geometry.location.lat+" "+e.geometry.location.lng);
           })
-        } 
+        }
+        else res.status(response.statusCode).send(body); 
       });
   }
+  else res.status(response.statusCode).send(body);
 });
 });
 
 
 //ROUTE PER IL RILASCIO DI UN FEEDBACK
+
+/**
+questa api permette di aggiungere un feedback su un utente che partecipa allo stesso evento del client e a cui il client stesso partecipa
+si prende prima l'evento e si controlla che lo user vi partecipi, poi si controlla che anche l'utente che si vuole recensire partecipi all'evento
+e solo allora si può modificare l'utente selezionato
+**/
+
 app.put("/Users/:email/feedback", isLoggedIn, function(req, res){
 
 	var evento = req.body.eventoterminato;
@@ -371,10 +446,14 @@ app.put("/Users/:email/feedback", isLoggedIn, function(req, res){
     Evento.findById(req.body.eventoterminato).populate("squadra_A").populate("squadra_B").exec(function(err, foundE){
       if(err){
       console.log(err);
-      res.redirect("/");
+      res.status(500).send(JSON.stringify(error));
       return;
     }
 
+    if(foundE == null){
+      res.status(404).send("No event found with that ID");
+      return;
+    }
 
     if(foundE._id == evento){
     	var i;
@@ -404,6 +483,11 @@ app.put("/Users/:email/feedback", isLoggedIn, function(req, res){
     	}
 
     	User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
+         if(err){
+            console.log(err);
+            res.status(500).send(JSON.stringify(err));
+            return;
+          }
     		var trovatoRichiedente = false;
     		for(i=0; i<foundU.eventi.length;i++){
     			if(req.body.eventoterminato == foundU.eventi[i]._id){
@@ -459,6 +543,13 @@ app.put("/Users/:email/feedback", isLoggedIn, function(req, res){
 
 
 //ROUTE PER LA RICERCA DI UN EVENTO UNA VOLTA SPECIFICATO DATA E LUOGO
+
+/**
+Questa api permette la ricerca di un evento una volta specificato l'indirizzo attorno a cui concentrare la ricerca e la data
+Prima si utilizzano le api di google di geocode per ottenere sempre le coordinate geografiche dall'inidirizzo specificato.
+Poi si effettua una ricerca nel db usando la geosearch di mongodb 
+**/
+
 app.get("/search",isLoggedIn,function(req,res){
 	var giorno = Number(req.query.giorno);
 	var mese = Number(req.query.mese);
@@ -486,7 +577,7 @@ app.get("/search",isLoggedIn,function(req,res){
           }).exec(function(err,events){
             if(err){
               console.log(err);
-              res.redirect("/");
+              res.status(500).send(JSON.stringify(err));
             }
             else{
               console.log(events);
@@ -494,19 +585,28 @@ app.get("/search",isLoggedIn,function(req,res){
             }
           })
       }
-
+      else res.status(response.statusCode).send(body); 
     })
 
 })
 
 
 //ROUTE PER MOSTRARE UN EVENTO PARTICOLARE ASSOCIATO A UN UTENTE
+
+
 app.get("/Eventi/:id",isLoggedIn,function(req,res){
   Evento.findById(req.params.id).populate("squadra_A").populate("squadra_B").exec(function(err,foundE){
     if(err) res.status(404).send(JSON.stringify(err));
     else res.send(JSON.stringify(foundE));
   });
 });
+
+
+/**
+questa api non è utilizzabile direttamente dal client ma serve solo per sapere il proprio indirizzo e-mail che è salvato nel db
+e creare una coda rabbitmq per il client
+**/
+
 
 app.get("/chisono",isLoggedIn,function(req,res){
   amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
@@ -535,7 +635,7 @@ app.put("/Eventi/:id", isLoggedIn, function(req, res){
   Evento.findById(req.params.id).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
       if(err){
       console.log(err);
-      res.status(404).send(JSON.stringify(err));
+      res.status(500).send(JSON.stringify(err));
       return;
     }
     console.log("Stai richiedendo di aggiungerti");
@@ -609,6 +709,7 @@ app.put("/Eventi/:id", isLoggedIn, function(req, res){
             Evento.findByIdAndUpdate(foundE._id, {$set:{partecipanti_att: par+1}}, function(err, modificati){
             	if(err){
             		console.log(err);
+                res.status(404).send(JSON.stringify(err));
             	}
             	else{
             		console.log(modificati);
@@ -642,10 +743,11 @@ app.put("/Eventi/:id", isLoggedIn, function(req, res){
 
 
 //ROUTE PER MOSTRARE TUTTI GLI EVENTI ASSOCIATI A UN UTENTE (RESTITUISCO SOLO I NOMI DEGLI EVENTI)
+
 app.get("/Eventi",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi","_id").exec(function(err,foundU){
     if(err){
-      res.status(404).send(JSON.stringify(err));
+      res.status(500).send(JSON.stringify(err));
       return;
     }
     var risposta = {ev:[]};
@@ -662,11 +764,12 @@ app.get("/Eventi",isLoggedIn,function(req,res){
 
 
 //ROUTE PER DISSOCIARE UN UTENTE DA UN EVENTO A CUI PARTECIPA
+
 app.put("/Eventi/:id/leave",isLoggedIn,function(req,res){
   User.findById(req.user._id).populate("eventi").exec(function(err,foundU){
     if(err){
       console.log(err);
-      res.redirect("/");
+      res.status(500).send(JSON.stringify(err));
       return;
     }
     console.log("stai abbandonando");
@@ -675,15 +778,19 @@ app.put("/Eventi/:id/leave",isLoggedIn,function(req,res){
     });
     if(contenuto_1 == undefined){
       console.log("utente non contiene questo elemento");
-      res.send("Non hai questo elem");
+      res.status(404).send("Non hai questo elem");
       return;
     }
     console.log(contenuto_1);
         Evento.findById(req.params.id).populate("squadra_"+req.body.squadra).exec(function(err,foundE){
           if(err){
             console.log(err);
-            res.redirect("/");
+            res.status(500).send(JSON.stringify(err));
             return;
+          }
+          if(foundE == null){
+            res.status(404).send("Evento con ID specificato non trovato");
+            return; 
           }
           amqp.connect('amqp://172.17.0.2:5672', function(err, conn) {
           conn.createChannel(function(err, ch) {
@@ -719,7 +826,7 @@ app.put("/Eventi/:id/leave",isLoggedIn,function(req,res){
             }
             if(contenuto == undefined){
               console.log("Evento non contiene questo utente");
-              res.send("Non sei in questa squadra");
+              res.status(404).send("Non sei in questa squadra");
               return;
             }
             console.log("============================");
@@ -742,7 +849,7 @@ app.put("/Eventi/:id/leave",isLoggedIn,function(req,res){
 	            foundE.save(function(err){
 	              if(err){
 	                console.log(err);
-	                res.status(404).send(JSON.stringify(err));
+	                res.status(500).send(JSON.stringify(err));
 	              }
 	              else{
 	                res.send("Eliminato");
@@ -751,10 +858,18 @@ app.put("/Eventi/:id/leave",isLoggedIn,function(req,res){
       		}
       		foundU.eventi.pull(foundE);
     		foundU.save(function(err){
-    			if(err) console.log(err);
+    			if(err){
+           console.log(err);
+           res.status(500).send(JSON.stringify(err));
+           return;
+         }
     			foundE.partecipanti_att=foundE.partecipanti_att-1;
     			foundE.save(function(err){
-    				if(err) console.log(err);
+    				if(err){
+             console.log(err);
+             res.status(500).send(JSON.stringify(err));
+             return;
+           }
     			})
     		})
         })
