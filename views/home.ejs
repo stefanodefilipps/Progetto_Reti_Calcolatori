@@ -402,7 +402,7 @@
 		console.log(Squadra);
 		if($("#squadra_A").is(':checked')) Squadra = "A";
 		else if($("#squadra_B").is(':checked')) Squadra = "B";
-		$.post("http://localhost:3000/Eventi/"+$("#evento_p").val()+"?_method=PUT",{Squadra:Squadra},function(data,status){
+		$.post("http://localhost:3000/Eventi/"+$("#evento_p").val()+"/add?_method=PUT",{Squadra:Squadra},function(data,status){
 			if(status == "success"){
 				alert(data);
 			}

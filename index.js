@@ -630,7 +630,7 @@ app.get("/chisono",isLoggedIn,function(req,res){
 
 //ROUTE PER L'AGGIUNTA DELL'UTENTE AD UN EVENTO SPECIFICATO
 
-app.put("/Eventi/:id", isLoggedIn, function(req, res){
+app.put("/Eventi/:id/add", isLoggedIn, function(req, res){
   console.log("==============="+req.body.Squadra+"================");
   Evento.findById(req.params.id).populate("squadra_"+req.body.Squadra).exec(function(err, foundE){
       if(err){
